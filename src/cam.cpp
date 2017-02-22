@@ -67,7 +67,11 @@ void cam::findRelativeVectors(int basePos, int Pos, vector<Vec3d>& translationVe
 }
 
 int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos1, vector<double>& relRot1, int baseMarker, int toFindMarker){
+    vector<double> tempRelPos1(3);
+    vector<vector<double> > tempArrayRelPos1;
 
+
+    double new_y,old_y = 0;
     Mat frame;
     vector<int> markerIds(2);
     vector<vector<Point2f> > markerCorners, rejectedCandidates;
@@ -80,12 +84,12 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
 
     if(!vid.isOpened()){
         return -1;
-        cout << "no cam" << endl;
+        cout << "no dice" << endl;
     }
-
     namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
 
     while(loopCondition == 0){
+
         if(!vid.read(frame))
             break;
 
@@ -93,11 +97,8 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
         aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimension, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
 
         int max = markerIds.size();
-        /* I take marker number 49 to mark my world coordinate system. I need it's index to find the vectors corresponding to it*/
         int basePos = findIndex(markerIds, baseMarker);
-        /* marker 48 will be used as object 1 which I want to know the position of with respect to the base coordinate system (marker 49)*/
         int Pos1 = findIndex(markerIds, toFindMarker);
-        //cout << "\r" << "pos1 = " << Pos1 << "   x = " << 100*translationVectors[Pos1][0] << "y= " << 100*translationVectors[Pos1][1] << "                     " << flush;
 
         for(int i = 0; i < max; i++){
             aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.08f);
@@ -111,9 +112,38 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
         {
             case' ': //space_bar
                 if(Pos1 != -1 && basePos != -1){
-                    findRelativeVectors(basePos, Pos1, translationVectors, rotationVectors, relPos1, relRot1);
+                    /* what follows is a cheap optimization, a larger Y is usually correct */
+                    for(int i = 0; i<5; i++){
+                        if(!vid.read(frame))
+                            break;
+                        aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
+                        aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimension, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
+
+                        int max = markerIds.size();
+                        int basePos = findIndex(markerIds, baseMarker);
+                        int Pos1 = findIndex(markerIds, toFindMarker);
+
+                        for(int i = 0; i < max; i++){
+                            aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.08f);
+                        }
+                        imshow("Webcam", frame);
+
+                        findRelativeVectors(basePos, Pos1, translationVectors, rotationVectors, relPos1, relRot1);
+                        new_y = relPos1[1];
+                        if(new_y > old_y){
+                            relPos1[1] = new_y;
+                            old_y = new_y;
+                        }
+                        else if(new_y < old_y){
+                            relPos1[1] = old_y;
+                        }
+                        cout << new_y*100 << endl;
+                        markerIds.resize(2); markerIds[0] = -1;  markerIds[1] = -1;
+                        waitKey(1000/fps);
+
+                    }
                     loopCondition = 1;
-                    //cout << "\r" << Pos1 << " "<<basePos << " dx=" << 100*relPos1[0] << " dy=" << 100*relPos1[1] << " dz=" << 100*relPos1[2] << "                   " << flush;
+
                 }
                 break;
             case 13: //enter key

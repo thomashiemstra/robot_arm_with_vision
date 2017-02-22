@@ -180,8 +180,8 @@ int main(void)
     struct Pos objup;
     setPos(&start,-15,15,1,0,0,-20*degtorad, 100);
     setPos(&stop,10,20,15,-pi/4,0,0,100);
-    setPos(&tempopen,-15,25,10,0,0,-20*degtorad, 0);
-    setPos(&tempclosed,-15,25,10,0,0,-20*degtorad,100);
+    setPos(&tempopen,-15,25,10,0,0,-20*degtorad, 100);
+    setPos(&tempclosed,-15,25,10,0,0,-20*degtorad,0);
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
     ik.eulerMatrix(0,0,-20*degtorad,t); /* pointed slightly downward */
@@ -194,23 +194,23 @@ int main(void)
         if(looptieloop == -1)
             break;
         cout << "x=" << 100*relPos1[0] << "  y=" << 100*relPos1[1] << endl;
-        x = 100*relPos1[0] -0.5;
+        x = 100*relPos1[0] -0.9;
         y = 100*relPos1[1] + 11;
         z = 1;
         setPos(&objup,x,y,10,0,0,-20*degtorad,100); /* first we move above the thingy */
         setPos(&obj,x,y,z,0,0,-20*degtorad,0); /* and now we move down and grab! */
-        line(start,tempclosed,speed);
+        line(start,tempopen,speed);
         msleep(hold);
-        line(tempclosed,objup,speed);
+        line(tempopen,objup,speed);
         msleep(hold);
-        line(objup,obj,speed);
+        line(objup,obj,speed/4);
         setPos(&objup,x,y,10,0,0,-20*degtorad,0); /* keep the bitch closed */
         msleep(hold);
         line(obj,objup,speed); /* back up */
         msleep(hold);
-        line(objup,tempopen,speed);
+        line(objup,tempclosed,speed);
         msleep(hold);
-        line(tempopen,start,speed); /* bring it home */
+        line(tempclosed,start,speed); /* bring it home */
     }
 
 }
