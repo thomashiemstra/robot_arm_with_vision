@@ -78,6 +78,78 @@ void msleep(long ms)  /* delay function in miliseconds*/
     nanosleep(&wait, NULL);
 }
 
+/* same as line but now a sine is added to the Z height, TODO dump in ik class.*/
+void arc(struct Pos start, struct Pos stap, double speed, double a){ 
+    double j;
+    double dx,dy,dz,r,x,y,z;
+    double wait,current_r;
+    double dalpha,dbeta,dgamma;
+    double alpha,beta,gamma;
+    double temp;
+    //double r_a; /* sum of the delta angles*/
+    int dgrip;
+    int steps;
+
+    double v_max = speed/1000.0;
+    double  dr = 1.0/precision; /* amount of steps per centimeter */
+    double mindelay = (dr/v_max);  /* amount of ms to wait between 2 steps */
+    dx = stap.x - start.x;
+    dy = stap.y - start.y;
+    dz = stap.z - start.z;
+    r = sqrt(dx*dx+dy*dy+dz*dz); /* total path length in centimeters */
+    dalpha = stap.alpha - start.alpha;
+    dbeta  = stap.beta - start.beta;
+    dgamma = stap.gamma - start.gamma;
+    //r_a = 12*(dalpha + dbeta + dgamma)/(2*pi); /* a verry rough estimate for the path traveled by the wrist*/
+    dgrip = stap.grip - start.grip;
+    steps = r*precision;
+
+    /* v = a*r²+b for current_r<=ramp, v = -c*r²+d for current_r>= r - ramp*/
+    /* why not just linear? */
+    double a = (1.0/(ramp*ramp) )*( (dr/mindelay)-(dr/(increase*mindelay)) );
+    double b = dr/(increase*mindelay);
+    double c = ( (dr/mindelay) - (dr/(increase*mindelay)) ) / (2*r*ramp - ramp*ramp);
+    double d = (dr/(increase*mindelay)) + c*r*r;
+
+    for(j = 0; j <= steps; j++){
+    current_r = dr*j;
+    x = start.x + ((j/steps)*dx);
+    y = start.y + ((j/steps)*dy);
+    z = start.z + ((j/steps)*dz) +a*sin(j*(pi/steps));
+    alpha = start.alpha + ((j/steps)*dalpha);
+    beta = start.beta + ((j/steps)*dbeta);
+    gamma = start.gamma + ((j/steps)*dgamma);
+    ik.eulerMatrix(alpha,beta,gamma,t);
+    ik.inverseKinematics(x,y,z,t,angles);
+    commandArduino(angles,start.grip);
+    /* mess due to accelleration */
+        if(r<=2*ramp){ /* path too short, v = 0.5*v_max everywhere */
+            msleep(2*mindelay);
+        }
+        else if(r>2*ramp){  /* v = a*current_r² + b*/
+            if (current_r <= ramp){
+                wait = dr / ( a*current_r*current_r + b);  /* v = dr/delay so delay = dr/v */
+                msleep(wait);
+            }
+        else if(current_r>ramp && current_r<r-ramp){
+            msleep(wait);
+        }
+        else if(current_r >= r-ramp){ /*v = -c*current_r² + d */
+            wait = dr/( -c*current_r*current_r + d);
+            msleep(wait);
+        }
+        }
+/* end of mess */
+    }
+    if(abs(dgrip) > 0){
+        for (j=0;j<20;j++){
+            temp = start.grip + (j/20)*dgrip;
+            commandArduino(angles,temp);
+            msleep(20);
+        }
+    }
+}
+
 /* this function is a mess and also it's cheating, please ignore */
 void line(struct Pos start, struct Pos stap, double speed){ /* speed in cm/s */
     double j;
@@ -104,7 +176,7 @@ void line(struct Pos start, struct Pos stap, double speed){ /* speed in cm/s */
     dgrip = stap.grip - start.grip;
     steps = r*precision;
 
-    /* v = a*r�+b for current_r<=ramp, v = -c*r�+d for current_r>= r - ramp*/
+    /* v = a*r²+b for current_r<=ramp, v = -c*r²+d for current_r>= r - ramp*/
     /* why not just linear? */
     double a = (1.0/(ramp*ramp) )*( (dr/mindelay)-(dr/(increase*mindelay)) );
     double b = dr/(increase*mindelay);
@@ -126,7 +198,7 @@ void line(struct Pos start, struct Pos stap, double speed){ /* speed in cm/s */
         if(r<=2*ramp){ /* path too short, v = 0.5*v_max everywhere */
             msleep(2*mindelay);
         }
-        else if(r>2*ramp){  /* v = a*current_r� + b*/
+        else if(r>2*ramp){  /* v = a*current_r² + b*/
             if (current_r <= ramp){
                 wait = dr / ( a*current_r*current_r + b);  /* v = dr/delay so delay = dr/v */
                 msleep(wait);
@@ -134,7 +206,7 @@ void line(struct Pos start, struct Pos stap, double speed){ /* speed in cm/s */
         else if(current_r>ramp && current_r<r-ramp){
             msleep(wait);
         }
-        else if(current_r >= r-ramp){ /*v = -c*current_r� + d */
+        else if(current_r >= r-ramp){ /*v = -c*current_r² + d */
             wait = dr/( -c*current_r*current_r + d);
             msleep(wait);
         }
@@ -176,7 +248,7 @@ int main(void)
     struct Pos tempopen;
     struct Pos tempclosed;
     struct Pos stop;
-    struct Pos obj; //location of the object we want to grab and squeeze real hard yet tenderly
+    struct Pos obj; 
     struct Pos objup;
     setPos(&start,-15,15,1,0,0,-20*degtorad, 100);
     setPos(&stop,10,20,15,-pi/4,0,0,100);
@@ -197,20 +269,20 @@ int main(void)
         x = 100*relPos1[0] -0.9;
         y = 100*relPos1[1] + 11;
         z = 1;
-        setPos(&objup,x,y,10,0,0,-20*degtorad,100); /* first we move above the thingy */
-        setPos(&obj,x,y,z,0,0,-20*degtorad,0); /* and now we move down and grab! */
+        setPos(&objup,x,y,10,0,0,-20*degtorad,100); /* first a location above the object is set */
+        setPos(&obj,x,y,z,0,0,-20*degtorad,0); /* and the object position itself */
         line(start,tempopen,speed);
         msleep(hold);
         line(tempopen,objup,speed);
         msleep(hold);
         line(objup,obj,speed/4);
-        setPos(&objup,x,y,10,0,0,-20*degtorad,0); /* keep the bitch closed */
+        setPos(&objup,x,y,10,0,0,-20*degtorad,0); /* keep it closed */
         msleep(hold);
         line(obj,objup,speed); /* back up */
         msleep(hold);
         line(objup,tempclosed,speed);
         msleep(hold);
-        line(tempclosed,start,speed); /* bring it home */
+        line(tempclosed,start,speed); /* bring it back */
     }
 
 }
