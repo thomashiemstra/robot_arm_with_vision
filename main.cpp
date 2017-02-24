@@ -239,7 +239,7 @@ int main(void)
     int looptieloop = 1;
     Mat cameraMatrix = Mat::eye(3,3, CV_64F);
     Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
-    vector<double> relPos1(3), relRot1(3); /* relRot is in compact Rodrigues notation NOT EULER ANGLES!!!! */
+    vector<double> relPos1(3); /* relRot is in compact Rodrigues notation NOT EULER ANGLES!!!! */
     Mat relativeMatrix = Mat::eye(3,3, CV_64F);
 
     CAM.getMatrixFromFile("CameraCalibration", cameraMatrix, distanceCoefficients);
@@ -262,7 +262,7 @@ int main(void)
 
 
     while(looptieloop == 1){
-        looptieloop = CAM.startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relRot1,49,48);
+        looptieloop = CAM.startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,49,48);
         if(looptieloop == -1)
             break;
         cout << "x=" << 100*relPos1[0] << "  y=" << 100*relPos1[1] << endl;
