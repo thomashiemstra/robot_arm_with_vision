@@ -33,11 +33,14 @@ int cam::findIndex(vector<int>& vec, int val){
     return res;
 }
 
-void cam::findRelativeVectors(int basePos, int Pos, vector<Vec3d>& translationVectors, vector<Vec3d>& rotationVectors, vector<double>& posRes, vector<double>& Rotres ){
-    int i,j;
+void cam::findRelativeVectors(int basePos, int Pos, vector<Vec3d>& translationVectors, Mat&  relativeRotMatrix , vector<double>& posRes, vector<double>& Rotres){
+    int i,j,k;
     vector<double> R(3);
     Mat baseRotMatrix = Mat::eye(3,3, CV_64F);
-//    Mat posRotMatrix = Mat::eye(3,3, CV_64F);
+    Mat baseRotMatrixTranspose = Mat::eye(3,3, CV_64F);
+    Mat objectRotMatrix = Mat::eye(3,3, CV_64F);
+
+
 
     /* posRes is the vector from the world coordinate system to object 1 expressed in world base vectors*/
     /* R is the vector from object to base in expressed in the camera frame*/
@@ -46,19 +49,34 @@ void cam::findRelativeVectors(int basePos, int Pos, vector<Vec3d>& translationVe
 
     /* R is still expressed with respect to the camera frame, to fix this we must multiply R by the transpose of the rotation matrix between the world and camera frame */
     Rodrigues(rotationVectors[basePos],baseRotMatrix);
+    Rodrigues(rotationVectors[Pos],objectRotMatrix);
+    
+    
+    for(i = 0; i < 3; i++){
+        for(i = 0; i < 3; i++){ 
+            baseRotMatrixTranspose.at<double>(j,i) = baseRotMatrix.at<double>(i,j);
+        }
+    }
 
     for(i = 0; i < 3; i++){
         posRes[i] = 0;
         for(j = 0; j < 3; j++){
-            posRes[i] += baseRotMatrix.at<double>(j,i)*R[j];
+            posRes[i] += baseRotMatrixTranspose.at<double>(i,j)*R[j];
         }
     }
 
-//
-//    Rodrigues(rotationVectors[basePos],baseRotMatrix);
-//    Rodrigues(rotationVectors[Pos1],posRotMatrix);
-
-
+    
+    for(i = 0; i < 3; i++)
+    {
+            for(j = 0; j < 3; j++)
+            {
+                    for(k = 0; k < 3; k++)
+                    {
+                            relativeRotMatrix.at<double>(i,j) +=  baseRotMatrixTranspose.at<double>(i,k) *  objectRotMatrix.at<double>(k,j);
+                    }
+            }
+    }
+    }
 
     /* does this work as expected?*/
     for(i = 0; i < 3; i++)
@@ -66,7 +84,7 @@ void cam::findRelativeVectors(int basePos, int Pos, vector<Vec3d>& translationVe
     /* Using rotation matrices, multiply one by the transpose (inverse rotation) of the other one. But maybe the above works as, well who knows. */
 }
 
-int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos1, vector<double>& relRot1, int baseMarker, int toFindMarker){
+int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos1,  Mat& relativeRotMatrix, int baseMarker, int toFindMarker){
     vector<double> tempRelPos1(3);
     vector<vector<double> > tempArrayRelPos1;
 
@@ -128,7 +146,7 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
                         }
                         imshow("Webcam", frame);
 
-                        findRelativeVectors(basePos, Pos1, translationVectors, rotationVectors, relPos1, relRot1);
+                        findRelativeVectors(basePos, Pos1, translationVectors, relativeRotMatrix, relPos1, relRot1);
                         new_y = relPos1[1];
                         if(new_y > old_y){
                             relPos1[1] = new_y;
