@@ -63,7 +63,7 @@ void commandArduino(double angles[7], int grip){
     ticks[4] = ik.getServoTick(angles[4],4);
     ticks[5] = ik.getServoTick(angles[5],5);
     ticks[6] = ik.getServoTick(pi - angles[6],6);
-    ticks[7] = 400 - 1.5*grip;
+    ticks[7] = 440 - 2*grip;
     sendStuff(ticks);
 
 }
@@ -161,7 +161,7 @@ int main(void)
 ///* a change in orientation of the end effector has no function yet */
 ///* getting the relative rotation is not happening either so far*/
     double hold = 10;
-    double speed = 30; /* in cm/s */
+    double speed = 20; /* in cm/s */
     double x,y,z;
     const float arucoSquareDimension = 0.025f; //in meters
     int looptieloop = 1;
@@ -203,7 +203,7 @@ int main(void)
         msleep(hold);
         line(tempopen,objup,speed);
         msleep(hold);
-        line(objup,obj,speed/4);
+        line(objup,obj,speed/1.5);
         setPos(&objup,x,y,10,0,0,-20*degtorad,0); /* keep the bitch closed */
         msleep(hold);
         line(obj,objup,speed); /* back up */
