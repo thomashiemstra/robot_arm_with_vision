@@ -25,7 +25,7 @@ double servovals[7][5] =   	{	{130,240,350,450,570}, //0
 								{120,230,335,440,550}, //3
 								{110,230,335,445,560}, //4
 								{150,245,340,445,555}, //5
-								{160,260,360,465,570} };//6
+								{155,250,350,450,555} };//6
 
 
 IK::IK(void){
@@ -117,20 +117,25 @@ void IK::inverseKinematics(double x,double y,double z,double t[3][3],double angl
     /* all that follows now is fixing the angles because some of the servo orientations */
     /* do no align with the DH frames and servo's can only move 180 degrees*/
     if (angles[4] > pi/2){
-    angles[4] = angles[4] - pi;
-    angles[5] = -angles[5];
-    angles[6] = pi + angles[6];
+		angles[4] -= pi;
+		angles[5] = -angles[5];
+		angles[6] += pi ;
     }
     if (angles[4] < -pi/2){
-    angles[4] = angles[4] + pi;
-    angles[5] = -angles[5];
-    angles[6] = pi + angles[6];
+		angles[4] += pi;
+		angles[5] = -angles[5];
+		angles[6] -= pi ;
     }
-    angles[1] = angles[1];
+	if( angles[6] < -pi)
+		angles[6] += 2*pi;
+	if( angles[6] > pi)
+		angles[6] -= 2*pi;
+
+	angles[1] = angles[1];
     angles[2] = angles[2];
     angles[3] = -(angles[3] - pi/2);
     angles[4] = (angles[4] + pi/2);
-    angles[5] = (pi/2) - angles[5];
-    angles[6] = fmod( ((pi/2) + angles[6] ), 2.0*pi) ;
+    angles[5] = (pi/2.0) - angles[5];
+	angles[6] = (pi/2.0) + 0.5*angles[6]; /* 0.5 because of the 2:1 gearing on the last joint*/
 
 }
