@@ -16,7 +16,7 @@
 #define pi  3.14159265358979323846264338327950288419716939937510
 #define degtorad 0.01745329251994329576923690768488612713
 #define radtodeg 57.2957795130823208767981548141051703324
-#define precision 4   /* amount of steps per centimeter */
+#define precision 5   /* amount of steps per centimeter */
 #define increase 4.0      /* I choose to lowest speed to be a factor of 4 smaller than the max speed */
 #define ramp 1.0          /* distance over which to increase/decrease speed, set to 1 centimeter */
 
@@ -64,7 +64,7 @@ void commandArduino(double angles[7], int grip){
     ticks[4] = ik.getServoTick(angles[4],4);
     ticks[5] = ik.getServoTick(angles[5],5);
     ticks[6] = ik.getServoTick((pi - angles[6]),6);
-    ticks[7] = 440 - 2*grip;
+    ticks[7] = 440 - 3*grip;
     sendStuff(ticks);
 
 }
@@ -241,7 +241,7 @@ int main(void)
 {
     int counter = 0;
     double hold = 10;
-    double speed = 20; /* in cm/s */
+    double speed = 25; /* in cm/s */
     double pitchdown = 90*degtorad;
     double x,y,z,theta;
     const float arucoSquareDimension = 0.025f; //in meters
@@ -256,30 +256,32 @@ int main(void)
     struct Pos start;
     struct Pos tempopen;
     struct Pos tempclosed;
+    struct Pos tempclosedup;
+    struct Pos tempclosedright;
+    struct Pos tempclosedleft;
     struct Pos obj;
     struct Pos objup;
     struct Pos checkPos;
 
     setPos(&checkPos,0,10,15,0,0,-pitchdown,100);
-    setPos(&start,-15,10,0,0,0,-pitchdown, 100);
+    setPos(&start,-15,15,0,0,0,-pitchdown, 100);
     setPos(&tempopen,-15,10,5,0,0,-pitchdown, 100);
 
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
     /* go to start */
     ik.eulerMatrix(0,0,-pitchdown,t); /* pointed slightly downward */
-    ik.inverseKinematics(-15,10,0,t,angles);
+    ik.inverseKinematics(-15,10,5,t,angles);
     commandArduino(angles,100);
     msleep(1000);
-    line(start,tempopen,speed);
 
     looptieloop = wait();
 
     while(looptieloop == 1){
         CAM.startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,49,43+counter);
         theta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
-        x = 100*relPos1[0]*0.95;
-        y = 100*relPos1[1]*1.05 + 10;
+        x = 100*relPos1[0]*0.95 - 0.5;
+        y = 100*relPos1[1] + 10.5;
         z = 0;
         pitchdown = 90*degtorad;
         if( y >= 25)
@@ -304,13 +306,20 @@ int main(void)
         setPos(&obj,x,y,z,theta,0,-pitchdown,0); /* and the object position itself */
         setPos(&start,-15,10,3*counter,0,0,-pitchdown, 100);
         line(tempopen,objup,speed);
+
         setPos(&tempclosed,-15,10,5 + 3*counter,0,0,-pitchdown,0);
+        setPos(&tempclosedright,-10,10,5 + 3*counter,0,0,-pitchdown,0);
+        setPos(&tempclosedleft,-20,10,5 + 3*counter,0,0,-pitchdown,0);
         setPos(&tempopen,-15,10,5 + 3*counter,0,0,-pitchdown, 100);
+
         msleep(500);
         line(objup,obj,speed/2);
         setPos(&objup,x,y,10,theta,0,-pitchdown,0); /* keep it closed */
         line(obj,objup,speed); /* back up */
         line(objup,tempclosed,speed);
+        line(tempclosed,tempclosedright,speed);
+        line(tempclosedright,tempclosedleft,speed);
+        line(tempclosedleft,tempclosed,speed);
         line(tempclosed,start,speed/4); /* bring it back */
         line(start,tempopen,speed);
         line(tempopen,checkPos,speed);
@@ -320,12 +329,14 @@ int main(void)
         y = 100*relPos1[1]*1.05 + 10;
         if( x+15 <= 3 && y - 10 <= 3 ){ /* within 2 centimeters of target*/
             counter++;
+            if(counter == 6)
+                looptieloop = 0;
             printf("gottem \n");
         }
         else{
-            printf("failed to grab \n");
+            printf("did not gottem! \n");
         }
-        line(checkPos,tempopen,speed);
+        line(checkPos,tempopen,speed/2);
         //looptieloop = wait();
 
     }
