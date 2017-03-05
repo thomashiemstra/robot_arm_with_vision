@@ -64,7 +64,7 @@ void commandArduino(double angles[7], int grip){
     ticks[4] = ik.getServoTick(angles[4],4);
     ticks[5] = ik.getServoTick(angles[5],5);
     ticks[6] = ik.getServoTick((pi - angles[6]),6);
-    ticks[7] = 440 - 3*grip;
+    ticks[7] = 420 - 2*grip;
     sendStuff(ticks);
 
 }
@@ -281,8 +281,8 @@ int main(void)
         CAM.startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,49,43+counter);
         theta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
         x = 100*relPos1[0]*0.95 - 0.5;
-        y = 100*relPos1[1] + 10.5;
-        z = 0;
+        y = 100*relPos1[1]*1.05 + 10;
+        z = 0.5;
         pitchdown = 90*degtorad;
         if( y >= 25)
             pitchdown = 50*degtorad;

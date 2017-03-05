@@ -19,13 +19,13 @@ using namespace::std;
 double epsilon = 0.05; /*use to avoid wrist singularities */
 /* arrays for the multimap function which makes the servos a bit more linear */
 double inangles[5]      =  {0,pi/4.0, pi/2.0, (3.0/4.0)*pi, pi};
-double servovals[7][5] =   	{	{130,240,350,450,570}, //0
+double servovals[7][5] =   	{	{140,225,315,418,515}, //0
 								{135,250,350,450,565}, //1
 								{110,230,330,445,560}, //2
 								{175,280,380,500,620}, //3
-								{135,250,355,450,580}, //4
-								{150,245,340,445,555}, //5
-								{155,250,350,450,555} };//6
+								{215,285,352,425,495}, //4
+								{240,240,345,450,570}, //5 can't go further than 45 degrees (mechanical limit)
+								{175,275,385,495,610} };//6
 
 IK::IK(void){
 	return;
@@ -109,22 +109,12 @@ void IK::inverseKinematics(double x,double y,double z,double t[3][3],double angl
     if(ay == 0)
         ay += epsilon;
 
-    angles[4] = atan2l(-ay,-ax);
-    angles[5] = atan2l(-sqrt(ax*ax+ay*ay),az);
-    angles[6] = atan2l(-sz,nz);
+    angles[4] = atan2(ay,ax);
+    angles[5] = atan2(sqrt(ax*ax+ay*ay),az); /* turns out I need the theta5 > 0 solution*/
+    angles[6] = atan2(sz,-nz);
 
     /* all that follows now is fixing the angles because some of the servo orientations */
     /* do no align with the DH frames and servo's can only move 180 degrees*/
-    if (angles[4] > pi/2){
-		angles[4] -= pi;
-		angles[5] = -angles[5];
-		angles[6] += pi ;
-    }
-    if (angles[4] < -pi/2){
-		angles[4] += pi;
-		angles[5] = -angles[5];
-		angles[6] -= pi ;
-    }
 	if( angles[6] < -pi)
 		angles[6] += 2*pi;
 	if( angles[6] > pi)
@@ -133,8 +123,8 @@ void IK::inverseKinematics(double x,double y,double z,double t[3][3],double angl
 	angles[1] = angles[1];
     angles[2] = angles[2];
     angles[3] = -(angles[3] - pi/2);
-    angles[4] = (angles[4] + pi/2);
-    angles[5] = (pi/2.0) - angles[5];
+    angles[4] = (0.5*angles[4] + pi/2);
+    angles[5] = pi - angles[5]; /* motor turns the wrong way */
 	angles[6] = (pi/2.0) + 0.5*angles[6]; /* 0.5 because of the 2:1 gearing on the last joint*/
 
 }
