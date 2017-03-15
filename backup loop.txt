@@ -71,3 +71,4 @@ while(loopCondition == 0){
             return -1;
             break;
         }
+	}

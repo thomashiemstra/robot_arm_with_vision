@@ -29,9 +29,11 @@ Serial *arduino;
 IK ik = IK();
 cam CAM = cam(0,30);
 
-
 int16_t ticks[8];
+const float arucoSquareDimension = 0.025f; //in meters
 double angles[7] = {0};
+char outPut[10] = {0};
+char const * portName = "\\\\.\\COM3";
 double t[3][3]= {{0,1,0},    //the target rotation matrix R
                  {0,0,1},
                  {1,0,0}};
@@ -41,9 +43,6 @@ struct Pos{
     long double alpha; long double beta; long double gamma; /* euler angles for the target orientation */
     int grip;
 };
-
-char outPut[10] = {0};
-char const * portName = "\\\\.\\COM3";
 
 void sendStuff(int16_t *val){ //sending 7 2 byte ints over serial
 	uint8_t bytes[16];
@@ -56,21 +55,18 @@ void sendStuff(int16_t *val){ //sending 7 2 byte ints over serial
 
 /* gripper position is a percentage, 100% is open*/
 void commandArduino(double angles[7], int grip){
-
     ticks[0] = ik.getServoTick(angles[1],0);
     ticks[1] = ik.getServoTick(angles[2],1);
     ticks[2] = ik.getServoTick(pi - angles[2],2);
     ticks[3] = ik.getServoTick(angles[3],3);
-    ticks[4] = ik.getServoTick(angles[4],4);
+    ticks[4] = ik.getServoTick((pi - angles[4]),4);
     ticks[5] = ik.getServoTick(angles[5],5);
     ticks[6] = ik.getServoTick((pi - angles[6]),6);
     ticks[7] = 420 - 2*grip;
     sendStuff(ticks);
-
 }
 
-void msleep(long ms)  /* delay function in miliseconds*/
-{
+void msleep(long ms){  /* delay function in miliseconds*/
     long us;
     us = 1000*ms;
     struct timespec wait;
@@ -240,104 +236,90 @@ int wait(){
 int main(void)
 {
     int counter = 0;
-    double hold = 10;
     double speed = 25; /* in cm/s */
-    double pitchdown = 90*degtorad;
+    double pitchdown = 45*degtorad;
     double x,y,z,theta;
-    const float arucoSquareDimension = 0.025f; //in meters
-    int looptieloop = 1;
     Mat cameraMatrix = Mat::eye(3,3, CV_64F);
     Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
     Mat relativeMatrix = Mat::zeros(3,3, CV_64F);
     vector<double> relPos1(3);
-
     CAM.getMatrixFromFile("CameraCalibration", cameraMatrix, distanceCoefficients);
 
-    struct Pos start;
-    struct Pos tempopen;
-    struct Pos tempclosed;
-    struct Pos tempclosedup;
-    struct Pos tempclosedright;
-    struct Pos tempclosedleft;
-    struct Pos obj;
-    struct Pos objup;
-    struct Pos checkPos;
-
-    setPos(&checkPos,0,10,15,0,0,-pitchdown,100);
+    struct Pos start, tempopen, tempclosed, obj, objup, checkPos;
+    setPos(&checkPos,-15,10,7,0,0,-45*degtorad,100);
     setPos(&start,-15,15,0,0,0,-pitchdown, 100);
-    setPos(&tempopen,-15,10,5,0,0,-pitchdown, 100);
+    setPos(&tempopen,-15,15,5,0,0,-pitchdown, 100);
 
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
-    /* go to start */
+
     ik.eulerMatrix(0,0,-pitchdown,t); /* pointed slightly downward */
     ik.inverseKinematics(-15,10,5,t,angles);
     commandArduino(angles,100);
-    msleep(1000);
 
-    looptieloop = wait();
-
+    int looptieloop = wait();
     while(looptieloop == 1){
-        CAM.startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,49,43+counter);
-        theta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
-        x = 100*relPos1[0]*0.95 - 0.5;
-        y = 100*relPos1[1]*1.05 + 10;
-        z = 0.5;
-        pitchdown = 90*degtorad;
-        if( y >= 25)
-            pitchdown = 50*degtorad;
-        if(x >= 0){
-            if(theta > 0)
-                theta = -fmod( -(theta - pi),pi/2.0);
-            if(theta < -pi/2.0)
-                theta = -fmod(-theta,pi/2.0);
-            if(theta < -pi/4.0 && x <= 10)
-                theta += pi/2.0;
-        }
-        if(x < 0){
-            if(theta < 0)
-                theta = fmod(theta + pi,pi/2.0);
-            if(theta > pi/2.0)
-                theta = fmod(theta,pi/2.0);
-            if(theta > pi/4.0 && x >= -10)
-                theta -= pi/2.0;
-        }
-        setPos(&objup,x,y,10,theta,0,-pitchdown,100); /* first a location above the object is set */
-        setPos(&obj,x,y,z,theta,0,-pitchdown,0); /* and the object position itself */
-        setPos(&start,-15,10,3*counter,0,0,-pitchdown, 100);
-        line(tempopen,objup,speed);
-
-        setPos(&tempclosed,-15,10,5 + 3*counter,0,0,-pitchdown,0);
-        setPos(&tempclosedright,-10,10,5 + 3*counter,0,0,-pitchdown,0);
-        setPos(&tempclosedleft,-20,10,5 + 3*counter,0,0,-pitchdown,0);
-        setPos(&tempopen,-15,10,5 + 3*counter,0,0,-pitchdown, 100);
-
-        msleep(500);
-        line(objup,obj,speed/2);
-        setPos(&objup,x,y,10,theta,0,-pitchdown,0); /* keep it closed */
-        line(obj,objup,speed); /* back up */
-        line(objup,tempclosed,speed);
-        line(tempclosed,tempclosedright,speed);
-        line(tempclosedright,tempclosedleft,speed);
-        line(tempclosedleft,tempclosed,speed);
-        line(tempclosed,start,speed/4); /* bring it back */
-        line(start,tempopen,speed);
-        line(tempopen,checkPos,speed);
-        /* check if block is at the right position*/
-        CAM.startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,49,43+counter);
-        x = 100*relPos1[0]*0.95;
-        y = 100*relPos1[1]*1.05 + 10;
-        if( x+15 <= 3 && y - 10 <= 3 ){ /* within 2 centimeters of target*/
-            counter++;
-            if(counter == 6)
-                looptieloop = 0;
-            printf("gottem \n");
-        }
-        else{
-            printf("did not gottem! \n");
-        }
-        line(checkPos,tempopen,speed/2);
-        //looptieloop = wait();
-
+        CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,45);
+//        CAM.startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,49,43+counter);
+        cout << "x_found=" << 100*relPos1[0] <<"   y_found=:" << 100*relPos1[1] << endl;
+//
+//        theta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+//        cout << "theta=" << theta << endl;
+//        x = 100*relPos1[0] -0.5;
+//        y = 100*relPos1[1] + 9.5;
+//        z = 0.5;
+//        cout << "x=" << x << "  y=" << y << endl;
+//        pitchdown = 90*degtorad;
+//        if( y >= 20)
+//            pitchdown = 45*degtorad;
+//        if(x >= 0){
+//            if(theta > 0)
+//                theta = -fmod( -(theta - pi),pi/2.0);
+//            if(theta < -pi/2.0)
+//                theta = -fmod(-theta,pi/2.0);
+//            if(theta < -pi/4.0 && x <= 10)
+//                theta += pi/2.0;
+//        }
+//        if(x < 0){
+//            if(theta < 0)
+//                theta = fmod(theta + pi,pi/2.0);
+//            if(theta > pi/2.0)
+//                theta = fmod(theta,pi/2.0);
+//            if(theta > pi/4.0 && x >= -10)
+//                theta -= pi/2.0;
+//        }
+//
+//        setPos(&objup,x,y,10,theta,0,-pitchdown,100); /* first a location above the object is set */
+//        setPos(&obj,x,y,z,theta,0,-pitchdown,0); /* and the object position itself */
+//        setPos(&start,-15,15,3*counter,0,0,-pitchdown, 100);
+//        line(tempopen,objup,speed);
+//
+//        setPos(&tempclosed,-15,15,5 + 3*counter,0,0,-pitchdown,0);
+//        setPos(&tempopen,-15,15,5 + 3*counter,0,0,-pitchdown, 100);
+//        setPos(&checkPos,-15,10,7 + 3*counter,0,0,-45*degtorad,100);
+//
+//        msleep(500);
+//        line(objup,obj,speed/2);
+//        setPos(&objup,x,y,10,theta,0,-pitchdown,0); /* keep it closed */
+//        line(obj,objup,speed); /* back up */
+//        line(objup,tempclosed,speed);
+//        line(tempclosed,start,speed/4); /* bring it back */
+//        line(start,tempopen,speed);
+//        line(tempopen,checkPos,speed);
+//        /* check if block is at the right position*/
+//        CAM.startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,49,43+counter); //43+counter
+//        x = 100*relPos1[0];
+//        y = 100*relPos1[1] + 10;
+//        if( x+15 <= 3 && y - 15 <= 3 ){ /* within 2 centimeters of target*/
+//            counter++;
+//            if(counter == 5)
+//                looptieloop = 0;
+//            printf("gottem \n");
+//        }
+//        else{
+//            printf("did not gottem! \n");
+//        }
+//        line(checkPos,tempopen,speed/2);
+        looptieloop = wait();
     }
 }

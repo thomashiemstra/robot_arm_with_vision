@@ -1,0 +1,56 @@
+int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos1, Mat& relativeRotMatrix, int baseMarker, int toFindMarker){
+    vector<double> tempRelPos1(3);
+    vector<vector<double> > tempArrayRelPos1;
+
+    double new_y,old_y = 0;
+    Mat frame;
+    vector<int> markerIds(2);
+    vector<vector<Point2f> > markerCorners, rejectedCandidates;
+    aruco::DetectorParameters parameters;
+    vector<Vec3d> rotationVectors, translationVectors;
+    Ptr< aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_7X7_50);
+    int loopCondition = 0;
+
+    VideoCapture vid(0);
+
+    if(!vid.isOpened()){
+        return -1;
+        cout << "no dice" << endl;
+    }
+    namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
+    while(loopCondition == 0){
+            /* what follows is a cheap optimization, the largest Y is usually correct */
+            for(int i = 0; i<100; i++){
+                if(!vid.read(frame))
+                    break;
+                aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
+                aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimension, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
+
+                int max = markerIds.size();
+                int basePos = findIndex(markerIds, baseMarker);
+                int Pos1 = findIndex(markerIds, toFindMarker);
+                for(int i = 0; i < max; i++){
+                    aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.08f);
+                }
+                imshow("Webcam", frame);
+                if(Pos1 != -1 && basePos != -1){
+                    findRelativeVector(basePos, Pos1, translationVectors, rotationVectors, relPos1);
+                    new_y = relPos1[1];
+                    if(new_y > old_y){
+                        relPos1[1] = new_y;
+                        old_y = new_y;
+                        findRotMatrix(basePos, Pos1, translationVectors, rotationVectors, relativeRotMatrix);
+                    }
+                    else if(new_y < old_y){
+                        relPos1[1] = old_y;
+                    }
+                    //cout << new_y*100 <<  "   y_base=" << translationVectors[basePos][1]*100  << "  y_pos=" << translationVectors[Pos1][1]*100 << endl;
+                }
+                markerIds.resize(2); markerIds[0] = -1;  markerIds[1] = -1;
+                waitKey(1000/fps);
+                cout << "i=" << i << endl;
+            }
+            loopCondition = 1;
+    }
+    return 1;
+}
