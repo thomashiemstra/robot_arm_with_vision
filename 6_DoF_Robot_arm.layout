@@ -2,30 +2,14 @@
 <CodeBlocks_layout_file>
 	<FileVersion major="1" minor="0" />
 	<ActiveTarget name="Debug" />
-	<File name="src\cam.cpp" open="1" top="0" tabpos="3" split="0" active="1" splitpos="0" zoom_1="-1" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="10392" topLine="66" />
-		</Cursor>
-		<Folding>
-			<Collapse line="27" />
-			<Collapse line="37" />
-			<Collapse line="66" />
-			<Collapse line="95" />
-		</Folding>
-	</File>
 	<File name="include\IK.h" open="1" top="0" tabpos="4" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="255" topLine="0" />
 		</Cursor>
 	</File>
-	<File name="include\cam.h" open="1" top="0" tabpos="2" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+	<File name="main.cpp" open="1" top="0" tabpos="1" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="1435" topLine="0" />
-		</Cursor>
-	</File>
-	<File name="main.cpp" open="1" top="1" tabpos="1" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="9182" topLine="192" />
+			<Cursor1 position="10734" topLine="0" />
 		</Cursor>
 		<Folding>
 			<Collapse line="41" />
@@ -35,9 +19,9 @@
 			<Collapse line="93" />
 		</Folding>
 	</File>
-	<File name="include\Serial.h" open="1" top="0" tabpos="6" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+	<File name="include\cam.h" open="1" top="0" tabpos="2" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="1089" topLine="0" />
+			<Cursor1 position="1435" topLine="0" />
 		</Cursor>
 	</File>
 	<File name="src\IK.cpp" open="1" top="0" tabpos="5" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
@@ -49,5 +33,21 @@
 		<Cursor>
 			<Cursor1 position="3771" topLine="97" />
 		</Cursor>
+	</File>
+	<File name="include\Serial.h" open="1" top="0" tabpos="6" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="1089" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src\cam.cpp" open="1" top="1" tabpos="3" split="0" active="1" splitpos="0" zoom_1="-1" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="10418" topLine="92" />
+		</Cursor>
+		<Folding>
+			<Collapse line="27" />
+			<Collapse line="37" />
+			<Collapse line="66" />
+			<Collapse line="95" />
+		</Folding>
 	</File>
 </CodeBlocks_layout_file>
