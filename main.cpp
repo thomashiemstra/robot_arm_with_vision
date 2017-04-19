@@ -10,6 +10,8 @@
 #include <conio.h>
 #include <chrono>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 #include "IK.h"
 #include "Serial.h"
 #include "cam.h"
@@ -40,8 +42,8 @@ double t[3][3]= {{0,1,0},    //the target rotation matrix R
                  {1,0,0}};
 
 struct Pos{
-    long double x; long double y; long double z;
-    long double alpha; long double beta; long double gamma; /* euler angles for the target orientation */
+    double x; double y; double z;
+    double alpha; double beta; double gamma; /* euler angles for the target orientation */
     int grip;
 };
 
@@ -117,7 +119,6 @@ void line(struct Pos start, struct Pos stop, double speed, int flip){ /* speed i
     steps = r*precision;
     if(r == 0){
         steps = r_a*200;
-        cout << "r_a=" << r_a << endl;
     }
 
     /* v = a*r²+b for current_r<=ramp, v = -c*r²+d for current_r>= r - ramp*/
@@ -269,64 +270,75 @@ double fixtheta(double x,double theta){
         return theta;
 }
 
+void returnBlock(vector<double>& relPos1, Mat& relativeMatrix, double speed, int flip, struct Pos dump){
+    double pitchdown = 45*degtorad;
+    int grip = 100;
+    double x,y,z,theta,temptheta;
+    x = 100*relPos1[0] -0.5;
+    y = 100*relPos1[1] + 11;
+    z = 1;
+    temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+    theta = fixtheta(x,temptheta);
+    cout << "x=" << x << "  y=" << y << "   theta=" <<theta << endl;
+    struct Pos tempopen, tempclosed, obj, objup, objuprotated, checkPos;
+
+    setPos(&objup,x,y,z+10,0,0,-pitchdown,grip);
+    setPos(&objuprotated,x,y,z+10,theta,0,-pitchdown,grip);
+
+    line(dump,objup,speed,flip);
+    msleep(100);
+
+    grip = 0;
+    setPos(&obj,x,y,z,theta,0,-pitchdown,grip);
+    line(objup,objuprotated,speed,flip);
+    msleep(100);
+    line(objuprotated,obj,speed,flip);
+    msleep(100);
+
+    setPos(&objup,x,y,z+10,0,0,-pitchdown,grip);
+    setPos(&objuprotated,x,y,z+10,theta,0,-pitchdown,grip);
+    line(obj,objuprotated,speed,flip);
+    msleep(100);
+    line(objuprotated,objup,speed,flip);
+    msleep(100);
+    line(objup,dump,speed,flip);
+
+}
+
+void setArmPos(struct Pos Pos, int flip){
+    double x,y,z,a,b,g;
+    x = Pos.x; y = Pos.y;  z = Pos.z;
+    a = Pos.alpha; b = Pos.beta; g = Pos.gamma;
+    int grip = Pos.grip;
+
+    ik.eulerMatrix(a,b,g,t);
+    ik.inverseKinematics(x,y,z,t,angles,flip);
+    commandArduino(angles,grip);
+}
 
 int main(void)
 {
-    int counter = 0;
+
     double speed = 30; /* in cm/s */
-    double pitchdown = 45*degtorad;
-    double x,y,z,theta,temptheta;
-    int flip = 1;
-    int grip = 100;
+    int flip = 1; /* implement this in a better way later plz...*/
+    vector<double> relPos1(3);
     Mat cameraMatrix = Mat::eye(3,3, CV_64F);
     Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
     Mat relativeMatrix = Mat::zeros(3,3, CV_64F);
-    vector<double> relPos1(3);
     CAM.getMatrixFromFile("CameraCalibration", cameraMatrix, distanceCoefficients);
-
-    struct Pos start, stop, tempopen, tempclosed, obj, objup, objuprotated, checkPos;
-    setPos(&start,-20,25,5,0,0,-pitchdown,grip);
-    //setPos(&stop,20,25,15,0,0,0,grip);
-
+    /* connect to arduino*/
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
 
-    ik.eulerMatrix(0,0,-pitchdown,t);
-    ik.inverseKinematics(-20,25,5,t,angles,flip);
-    commandArduino(angles,grip);
+    struct Pos dump;
+    setPos(&dump, -15,25,1,0,0,-45*degtorad,100);
+    setArmPos(dump, flip);
 
     int looptieloop = wait();
     while(looptieloop == 1){
 
         CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,42);
-        temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
-        x = 100*relPos1[0] -0.5;
-        y = 100*relPos1[1] + 12;
-        z = 2;
-        theta = fixtheta(x,temptheta);
-        cout << "x=" << x << "  y=" << y << "   theta=" <<theta << endl;
-        grip = 100;
-        setPos(&objup,x,y,z+10,0,0,-pitchdown,grip);
-        setPos(&objuprotated,x,y,z+10,theta,0,-pitchdown,grip);
-
-        line(start,objup,speed,flip);
-        msleep(100);
-
-        grip = 0;
-        setPos(&obj,x,y,z,theta,0,-pitchdown,grip);
-        line(objup,objuprotated,speed,flip);
-        msleep(100);
-        line(objuprotated,obj,speed,flip);
-        msleep(100);
-
-        setPos(&objup,x,y,z+10,0,0,-pitchdown,grip);
-        setPos(&objuprotated,x,y,z+10,theta,0,-pitchdown,grip);
-        line(obj,objuprotated,speed,flip);
-        msleep(100);
-        line(objuprotated,objup,speed,flip);
-        msleep(100);
-        line(objup,start,speed,flip);
-
+        returnBlock(relPos1,relativeMatrix,speed, flip, dump);
         looptieloop = wait();
     }
 
