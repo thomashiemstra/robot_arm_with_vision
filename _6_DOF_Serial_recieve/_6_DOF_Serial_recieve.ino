@@ -23,7 +23,7 @@ int readStuff(){
 void setup(){
    Serial.begin(115200); 
   pwm.begin();
-  pwm.setPWMFreq(60);
+  pwm.setPWMFreq(100);
   lcd.begin(16, 2);
   lcd.print("ready for action!");
 }
@@ -35,14 +35,14 @@ void loop(){
     }
     
     if( counter == 16){
-        lcd.clear();
+//        lcd.clear();
         for(i = 0; i < 8; i++){
              res[i] = (input[2*i] << 8 ) | (input[2*i+1] & 0xff);
              pwm.setPWM(i, 0, res[i]);
         }
 //        lcd.clear();
 //        lcd.setCursor(0,0);
-//        lcd.print(res[6]);
+//        lcd.print(res[2]);
 //        pwm.setPWM(6,0,res[6]);
         counter = 0;
     }

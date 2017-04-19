@@ -17,7 +17,7 @@
 					<Add directory="include" />
 				</Compiler>
 				<Linker>
-					<Add library="../../../../TDM-GCC-64/x86_64-w64-mingw32/lib/libopencv_world320.dll.a" />
+					<Add library="../../../../../TDM-GCC-64/x86_64-w64-mingw32/lib/libopencv_world320.dll.a" />
 				</Linker>
 			</Target>
 			<Target title="Release">

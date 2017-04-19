@@ -25,7 +25,7 @@ class cam
     public:
         cam(uint8_t cameraNum, int framesPerSecond);
         bool getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficients);
-        int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos1, Mat& relativeRotMatrix, int baseMarker, int toFindMarker);
+        int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, int toFindMarker);
         bool calibrateRoutine(int cameraNumber, Mat cameraMatrix, Mat distanceCoefficients);
         int findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos1, Mat& relativeRotMatrix, int toFindMarker);
     private:

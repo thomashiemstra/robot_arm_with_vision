@@ -1,0 +1,70 @@
+        //CAM.startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension,43 + counter);
+
+        auto begin = std::chrono::high_resolution_clock::now();
+
+        CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,44 );
+
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end-begin).count() << "ms" << std::endl;
+
+        cout << "x_found=" << 100*relPos1[0] <<"   y_found=:" << 100*relPos1[1] << "z=" << 100*relPos1[2] << endl;
+        theta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+        cout << "theta=" << theta << endl;
+        x = 100*relPos1[0] ;
+        y = 100*relPos1[1] + 10;
+        z = 0.5;
+        cout << "x=" << x << "  y=" << y << endl;
+        pitchdown = 90*degtorad;
+        if( y >= 20)
+            pitchdown = 45*degtorad;
+        if(x >= 0){
+            if(theta > 0)
+                theta = -fmod( -(theta - pi),pi/2.0);
+            if(theta < -pi/2.0)
+                theta = -fmod(-theta,pi/2.0);
+            if(theta < -pi/4.0 && x <= 10)
+                theta += pi/2.0;
+        }
+        if(x < 0){
+            if(theta < 0)
+                theta = fmod(theta + pi,pi/2.0);
+            if(theta > pi/2.0)
+                theta = fmod(theta,pi/2.0);
+            if(theta > pi/4.0 && x >= -10)
+                theta -= pi/2.0;
+        }
+
+
+
+
+        setPos(&objup,x,y,10,theta,0,-pitchdown,100); /* first a location above the object is set */
+        setPos(&obj,x,y,z,theta,0,-pitchdown,0); /* and the object position itself */
+        setPos(&start,-15,15,3*counter,0,0,-pitchdown, 100);
+        line(tempopen,objup,speed);
+
+        setPos(&tempclosed,-15,15,5 + 3*counter,0,0,-pitchdown,0);
+        setPos(&tempopen,-15,15,5 + 3*counter,0,0,-pitchdown, 100);
+        setPos(&checkPos,-15,10,7 + 3*counter,0,0,-45*degtorad,100);
+
+        msleep(500);
+        line(objup,obj,speed/2);
+        setPos(&objup,x,y,10,theta,0,-pitchdown,0); /* keep it closed */
+        line(obj,objup,speed); /* back up */
+        line(objup,tempclosed,speed);
+        line(tempclosed,start,speed/4); /* bring it back */
+        line(start,tempopen,speed);
+        line(tempopen,checkPos,speed);
+        /* check if block is at the right position*/
+        CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,43 + counter);
+        x = 100*relPos1[0];
+        y = 100*relPos1[1] + 10;
+        if( x+15 <= 3 && y - 15 <= 3 ){ /* within 2 centimeters of target*/
+            //counter++;
+            if(counter == 5)
+                looptieloop = 0;
+            printf("gottem \n");
+        }
+        else{
+            printf("did not gottem! \n");
+        }
+        line(checkPos,tempopen,speed/2);

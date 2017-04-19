@@ -1,5 +1,6 @@
 #include "cam.h"
-
+#include <chrono>
+#include <thread>
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
@@ -22,6 +23,7 @@ cam::cam(uint8_t cameraNum, int framesPerSecond){
     camera = cameraNum;
     fps = framesPerSecond;
 }
+
 
 int cam::findIndex(vector<int>& vec, int val){
     int res;
@@ -112,20 +114,12 @@ void cam::findRelativeVector(int basePos, int Pos, vector<Vec3d>& translationVec
     }
 }
 
-int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos1, Mat& relativeRotMatrix, int baseMarker, int toFindMarker){
-    vector<double> tempRelPos1(3);
-    vector<vector<double> > tempArrayRelPos1;
-
-    double new_y,old_y = 0;
-    double tempx,tempy;
-   // double counter = 0;
+/* this function can be used to get the camera into focus*/
+int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, int toFindMarker){
     Mat frame;
-    vector<int> markerIds(2);
-    vector<vector<Point2f> > markerCorners, rejectedCandidates;
-    aruco::DetectorParameters parameters;
-    vector<Vec3d> rotationVectors, translationVectors;
-    Ptr< aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_7X7_50);
-    int loopCondition = 0;
+    Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_7X7_50);
+    Ptr<aruco::CharucoBoard> charucoboard = aruco::CharucoBoard::create(5, 3, 0.0265f, 0.0198f, markerDictionary);
+    Ptr<aruco::Board> board = charucoboard.staticCast<aruco::Board>();
 
     VideoCapture vid(0);
 
@@ -134,41 +128,31 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
         cout << "no dice" << endl;
     }
     namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
-    while(loopCondition == 0){
-            /* turns out the largest found y (and accompanying x) are the correct ones */
-            for(int i = 0; i<30; i++){
-                if(!vid.read(frame))
-                    break;
-                aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
-                aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimension, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
+    while(true){
+        if(!vid.read(frame))
+            break;
+        vector<Vec3d> rotationVectors, translationVectors;
+        Vec3d rvec, tvec;
+        vector< Point2f > charucoCorners;
+        vector< vector< Point2f > > markerCorners, rejectedMarkers;
+        vector<int> markerIds, charucoIds;
 
-                int max = markerIds.size();
-                int basePos = findIndex(markerIds, baseMarker);
-                int Pos1 = findIndex(markerIds, toFindMarker);
-                for(int i = 0; i < max; i++){
-                    aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.08f);
-                }
-                imshow("Webcam", frame);
-                if(Pos1 != -1 && basePos != -1){
-                    findRelativeVector(basePos, Pos1, translationVectors, rotationVectors, relPos1);
-                        new_y = relPos1[1];
-                        if(new_y > old_y){
-                            tempx = relPos1[0];
-                            tempy = new_y;
-                            old_y = new_y;
-                            findRotMatrix(basePos, Pos1, translationVectors, rotationVectors, relativeRotMatrix);
-                        }
-                        else if(new_y < old_y){
-                            tempy = old_y;
-                        }
-                        //cout << "x=" << relPos1[0]*100 << "  y=" << 100*relPos1[1] << endl;
-                }
-                markerIds.resize(2); markerIds[0] = -1;  markerIds[1] = -1;
-                waitKey(1000/fps);
-            }
-            relPos1[0] = tempx;
-            relPos1[1] = tempy;
-            loopCondition = 1;
+        aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
+        aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimension, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
+        if(markerIds.size()>0)
+                aruco::interpolateCornersCharuco(markerCorners, markerIds, frame, charucoboard, charucoCorners, charucoIds, cameraMatrix, distanceCoefficients);
+        bool validPose = aruco::estimatePoseCharucoBoard(charucoCorners, charucoIds, charucoboard, cameraMatrix, distanceCoefficients, rvec, tvec);
+        int Pos1 = findIndex(markerIds, toFindMarker);
+
+        if(Pos1 != -1)
+            aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[Pos1], translationVectors[Pos1], 0.08f);
+        if(validPose)
+            aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rvec, tvec, 0.12f);
+
+        imshow("Webcam", frame);
+        char key = (char)waitKey(1000/fps);
+        if(key == 27) break;
+
     }
     return 1;
 }
@@ -232,7 +216,7 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
     float axisLength = 0.5f * ((float)min(5, 3) * (0.0265f));
     bool validPose;
 
-    Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_7X7_50);
+    Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_4X4_50);
     Ptr<aruco::CharucoBoard> charucoboard = aruco::CharucoBoard::create(5, 3, 0.0265f, 0.0198f, markerDictionary);
     Ptr<aruco::Board> board = charucoboard.staticCast<aruco::Board>();
 
@@ -240,13 +224,18 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
     if(!vid.isOpened()){
         return -1;
     }
-    namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
+    //namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
 
-    for(int i = 0; i<30; i++){
+    vid.read(frame); /* reading 1 frame first speeds up the for loop, does it need to start up or something?*/
+
+    for(int i = 0; i<10; i++){
+        auto begin = std::chrono::high_resolution_clock::now();
         if(!vid.read(frame))
             break;
+
+
         vector<Vec3d> rotationVectors, translationVectors;
-        Vec3d rvec, tvec;
+        Vec3d rvec, tvec; /* for the charucoboard */
         vector< Point2f > charucoCorners;
         vector< vector< Point2f > > markerCorners, rejectedMarkers;
         vector<int> markerIds, charucoIds;
@@ -275,11 +264,23 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
             else if(new_y < old_y){
                 tempy = old_y;
             }
-            cout << "x=" << relPos[0]*100 << "  y=" << 100*relPos[1] << endl;
+            //cout << "x=" << relPos[0]*100 << "  y=" << 100*relPos[1] << endl;
         }
-    imshow("Webcam", frame);
-    waitKey(1000/fps);
+    //imshow("Webcam", frame);
+
+    auto temp = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> fp_ms = temp - begin;
+    double test = fp_ms.count();
+    int wait = (int)((1000.0/fps) - test);
+    if(wait<0)
+        wait = 1;
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(wait));
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end-begin).count() << "ms" << std::endl;
     }
+
     relPos[0] = tempx;
     relPos[1] = tempy;
     return 1;
