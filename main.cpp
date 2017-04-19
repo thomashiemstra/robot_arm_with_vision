@@ -272,8 +272,6 @@ double fixtheta(double x,double theta){
 
 int main(void)
 {
-
-
     int counter = 0;
     double speed = 30; /* in cm/s */
     double pitchdown = 45*degtorad;
