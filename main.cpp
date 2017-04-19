@@ -33,6 +33,8 @@ Serial *arduino;
 IK ik = IK();
 cam CAM = cam(0,60);
 
+mutex mu;
+
 const float arucoSquareDimension = 0.0265f; //in meters
 double angles[7] = {0};
 char outPut[10] = {0};
@@ -243,7 +245,7 @@ void setPos(struct Pos* pos, double x, double y, double z, double alpha, double 
 }
 
 int wait(){
-    printf("press any key to continue or esc to quit \n");
+    cout << "press any key to continue or esc to quit" << endl;
     if(getch() == 27)
         return 0;
     else
@@ -269,14 +271,26 @@ double fixtheta(double x,double theta){
         }
         return theta;
 }
-
-void returnBlock(vector<double>& relPos1, Mat& relativeMatrix, double speed, int flip, struct Pos dump){
+/* picks up the block found by "findVecsCharuco" and puts it at dumps location*/
+int returnBlock(vector<double>& relPos1, Mat& relativeMatrix, double speed, int flip, struct Pos dump){
+    unique_lock<mutex> locker(mu,defer_lock);
+    if(!locker.try_lock()){
+        cout << "already in use!" << endl;
+        msleep(100);
+        return 0;
+    }
+    cout << "try=" << mu.try_lock() << endl;
     double pitchdown = 45*degtorad;
     int grip = 100;
     double x,y,z,theta,temptheta;
     x = 100*relPos1[0] -0.5;
     y = 100*relPos1[1] + 11;
     z = 1;
+
+    if(y < 12){
+        cout << "ain't gonna wreck myself!!!" << endl;
+        return 0;
+    }
     temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
     theta = fixtheta(x,temptheta);
     cout << "x=" << x << "  y=" << y << "   theta=" <<theta << endl;
@@ -302,7 +316,7 @@ void returnBlock(vector<double>& relPos1, Mat& relativeMatrix, double speed, int
     line(objuprotated,objup,speed,flip);
     msleep(100);
     line(objup,dump,speed,flip);
-
+    locker.unlock();
 }
 
 void setArmPos(struct Pos Pos, int flip){
@@ -318,7 +332,6 @@ void setArmPos(struct Pos Pos, int flip){
 
 int main(void)
 {
-
     double speed = 30; /* in cm/s */
     int flip = 1; /* implement this in a better way later plz...*/
     vector<double> relPos1(3);
@@ -329,16 +342,18 @@ int main(void)
     /* connect to arduino*/
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
-
+    /* go to starting position */
     struct Pos dump;
     setPos(&dump, -15,25,1,0,0,-45*degtorad,100);
     setArmPos(dump, flip);
 
     int looptieloop = wait();
     while(looptieloop == 1){
-
         CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,42);
-        returnBlock(relPos1,relativeMatrix,speed, flip, dump);
+
+        thread t(returnBlock,ref(relPos1),ref(relativeMatrix),ref(speed), ref(flip), ref(dump));
+        t.detach();
+        //returnBlock(relPos1,relativeMatrix,speed, flip, dump);
         looptieloop = wait();
     }
 
