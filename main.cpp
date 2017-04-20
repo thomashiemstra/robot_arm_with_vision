@@ -31,9 +31,10 @@ void msleep(long ms);
 
 Serial *arduino;
 IK ik = IK();
-cam CAM = cam(0,60);
+cam CAM = cam(0,30);
 
 mutex mu;
+condition_variable cond;
 
 const float arucoSquareDimension = 0.0265f; //in meters
 double angles[7] = {0};
@@ -330,11 +331,16 @@ void setArmPos(struct Pos Pos, int flip){
     commandArduino(angles,grip);
 }
 
+
 int main(void)
 {
     double speed = 30; /* in cm/s */
     int flip = 1; /* implement this in a better way later plz...*/
+    int toFind = 0;
     vector<double> relPos1(3);
+    bool getVecs = false;
+
+
     Mat cameraMatrix = Mat::eye(3,3, CV_64F);
     Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
     Mat relativeMatrix = Mat::zeros(3,3, CV_64F);
@@ -347,14 +353,28 @@ int main(void)
     setPos(&dump, -15,25,1,0,0,-45*degtorad,100);
     setArmPos(dump, flip);
 
-    int looptieloop = wait();
-    while(looptieloop == 1){
-        CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,42);
 
-        thread t(returnBlock,ref(relPos1),ref(relativeMatrix),ref(speed), ref(flip), ref(dump));
-        t.detach();
+    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs) );
+    int looptieloop = wait();
+    toFind = 42;
+    while(looptieloop == 1){
+        getVecs = true;
+        unique_lock<mutex> locker(mu);
+        cond.wait(locker, [&]{return !getVecs;});// I dunno wtf this lambda thing is doing but it works
+        returnBlock(relPos1,relativeMatrix,speed, flip, dump);
+        locker.unlock();
+
+
+        //CAM.startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension,42);
+//        CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,42);
+//
+//        thread t(returnBlock,ref(relPos1),ref(relativeMatrix),ref(speed), ref(flip), ref(dump));
+//        t.detach();
         //returnBlock(relPos1,relativeMatrix,speed, flip, dump);
+
         looptieloop = wait();
+        getVecs = true;
+        toFind++;
     }
 
 }

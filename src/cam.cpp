@@ -13,6 +13,9 @@
 #include <sstream>
 #include <fstream>
 #include <list>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 #include <opencv2/opencv.hpp>
 #include <opencv2/aruco/charuco.hpp>
 
@@ -23,7 +26,6 @@ cam::cam(uint8_t cameraNum, int framesPerSecond){
     camera = cameraNum;
     fps = framesPerSecond;
 }
-
 
 int cam::findIndex(vector<int>& vec, int val){
     int res;
@@ -114,10 +116,33 @@ void cam::findRelativeVector(int basePos, int Pos, vector<Vec3d>& translationVec
     }
 }
 
+void findRelativeVectorCharuco(Vec3d& baseRotation, Vec3d& baseTranslation, Vec3d& posTranslation,  vector<double>& posRes){
+    int i,j;
+    vector<double> R(3);
+    Mat baseRotMatrix = Mat::eye(3,3, CV_64F);
+
+    /* posRes is the vector from the world coordinate system to object 1 expressed in world base vectors*/
+    /* R is the vector from object to base in expressed in the camera frame*/
+    for(i = 0; i < 3; i++)
+        R[i] = posTranslation[i] -  baseTranslation[i];
+    //cout << "\r" << "Rx=" << 100*R[0] << " Ry=" << 100*R[1] << " Rz=" << 100*R[2] << "                   " << flush;
+    //cout << "\r" << "POSRx=" << 100*posTranslation[0] << " Ry=" << 100*posTranslation[1] << " Rz=" << 100*posTranslation[2] << "                   " << flush;
+    //cout << "\r" << "BASERx=" << 100*baseTranslation[0] << " Ry=" << 100*baseTranslation[1] << " Rz=" << 100*baseTranslation[2] << "                   " << flush;
+    /* R is still expressed with respect to the camera frame, to fix this we must multiply R by the transpose of the rotation matrix between the world and camera frame */
+    Rodrigues(baseRotation,baseRotMatrix);
+
+    for(i = 0; i < 3; i++){
+        posRes[i] = 0;
+        for(j = 0; j < 3; j++){
+            posRes[i] += baseRotMatrix.at<double>(j,i)*R[j];
+        }
+    }
+}
+
 /* this function can be used to get the camera into focus*/
-int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, int toFindMarker){
+int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos, Mat& relativeRotMatrix, int& toFindMarker,bool &getVecs){
     Mat frame;
-    Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_7X7_50);
+    Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_4X4_50);
     Ptr<aruco::CharucoBoard> charucoboard = aruco::CharucoBoard::create(5, 3, 0.0265f, 0.0198f, markerDictionary);
     Ptr<aruco::Board> board = charucoboard.staticCast<aruco::Board>();
 
@@ -144,10 +169,23 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
         bool validPose = aruco::estimatePoseCharucoBoard(charucoCorners, charucoIds, charucoboard, cameraMatrix, distanceCoefficients, rvec, tvec);
         int Pos1 = findIndex(markerIds, toFindMarker);
 
-        if(Pos1 != -1)
-            aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[Pos1], translationVectors[Pos1], 0.08f);
+
         if(validPose)
             aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rvec, tvec, 0.12f);
+        if(Pos1 != -1){
+            aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[Pos1], translationVectors[Pos1], 0.08f);
+            if(getVecs && toFindMarker >= 42){ //blocks in the field start at marker number 42
+                unique_lock<mutex> locker(mu);
+                findRelativeVectorCharuco(rvec, tvec, translationVectors[Pos1], relPos);
+                findRotMatrixCharuco(rvec, rotationVectors[Pos1], relativeRotMatrix);
+                getVecs = false;
+                locker.unlock();
+                cond.notify_one();
+            }
+
+
+        }
+
 
         imshow("Webcam", frame);
         char key = (char)waitKey(1000/fps);
@@ -186,28 +224,6 @@ bool cam::getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficie
     return false;
 }
 
-void findRelativeVectorCharuco(Vec3d& baseRotation, Vec3d& baseTranslation, Vec3d& posTranslation,  vector<double>& posRes){
-    int i,j;
-    vector<double> R(3);
-    Mat baseRotMatrix = Mat::eye(3,3, CV_64F);
-
-    /* posRes is the vector from the world coordinate system to object 1 expressed in world base vectors*/
-    /* R is the vector from object to base in expressed in the camera frame*/
-    for(i = 0; i < 3; i++)
-        R[i] = posTranslation[i] -  baseTranslation[i];
-    //cout << "\r" << "Rx=" << 100*R[0] << " Ry=" << 100*R[1] << " Rz=" << 100*R[2] << "                   " << flush;
-    //cout << "\r" << "POSRx=" << 100*posTranslation[0] << " Ry=" << 100*posTranslation[1] << " Rz=" << 100*posTranslation[2] << "                   " << flush;
-    //cout << "\r" << "BASERx=" << 100*baseTranslation[0] << " Ry=" << 100*baseTranslation[1] << " Rz=" << 100*baseTranslation[2] << "                   " << flush;
-    /* R is still expressed with respect to the camera frame, to fix this we must multiply R by the transpose of the rotation matrix between the world and camera frame */
-    Rodrigues(baseRotation,baseRotMatrix);
-
-    for(i = 0; i < 3; i++){
-        posRes[i] = 0;
-        for(j = 0; j < 3; j++){
-            posRes[i] += baseRotMatrix.at<double>(j,i)*R[j];
-        }
-    }
-}
 
 int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos, Mat& relativeRotMatrix, int toFindMarker){
     Mat frame;
@@ -254,7 +270,7 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
 
         if(Pos1 != -1){
             findRelativeVectorCharuco(rvec, tvec, translationVectors[Pos1], relPos);
-        new_y = relPos[1];
+            new_y = relPos[1];
             if(new_y > old_y){
                 tempx = relPos[0];
                 tempy = new_y;
@@ -277,7 +293,7 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
 
     std::this_thread::sleep_for(std::chrono::milliseconds(wait));
 
-    auto end = std::chrono::high_resolution_clock::now();
+    //auto end = std::chrono::high_resolution_clock::now();
     //std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end-begin).count() << "ms" << std::endl;
     }
 

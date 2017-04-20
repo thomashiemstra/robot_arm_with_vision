@@ -13,19 +13,25 @@
 #include <sstream>
 #include <fstream>
 #include <list>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 #include <opencv2/opencv.hpp>
 #include <opencv2/aruco/charuco.hpp>
 
 
 using namespace cv;
 using namespace std;
+extern condition_variable cond;
+extern mutex mu;
+
 
 class cam
 {
     public:
         cam(uint8_t cameraNum, int framesPerSecond);
         bool getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficients);
-        int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, int toFindMarker);
+        int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos, Mat& relativeRotMatrix, int& toFindMarker,bool &getVecs);
         bool calibrateRoutine(int cameraNumber, Mat cameraMatrix, Mat distanceCoefficients);
         int findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos1, Mat& relativeRotMatrix, int toFindMarker);
     private:
