@@ -273,26 +273,67 @@ double fixtheta(double x,double theta){
         return theta;
 }
 /* picks up the block found by "findVecsCharuco" and puts it at dumps location*/
-int returnBlock(vector<double>& relPos1, Mat& relativeMatrix, double speed, int flip, struct Pos dump){
+//int returnBlock(vector<double>& relPos1, Mat& relativeMatrix, double speed, int flip, struct Pos dump){
+//    unique_lock<mutex> locker(grabmu,defer_lock);
+//    if(!locker.try_lock()){
+//        cout << "already in use!" << endl;
+//        msleep(100);
+//        return 0;
+//    }
+//    cout << "try=" << mu.try_lock() << endl;
+//    double pitchdown = 45*degtorad;
+//    int grip = 100;
+//    double x,y,z,theta,temptheta;
+//    x = 100*relPos1[0] -0.5;
+//    y = 100*relPos1[1] + 11;
+//    z = 0.5;
+//
+//    if(y < 12){
+//        cout << "ain't gonna wreck myself!!!" << endl;
+//        return 0;
+//    }
+//    temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+//    theta = fixtheta(x,temptheta);
+//    cout << "x=" << x << "  y=" << y << "   theta=" <<theta << endl;
+//    struct Pos tempopen, tempclosed, obj, objup, objuprotated, checkPos;
+//
+//    setPos(&objup,x,y,z+10,0,0,-pitchdown,grip);
+//    setPos(&objuprotated,x,y,z+10,theta,0,-pitchdown,grip);
+//
+//    line(dump,objup,speed,flip);
+//    msleep(100);
+//
+//    grip = 0;
+//    setPos(&obj,x,y,z,theta,0,-pitchdown,grip);
+//    line(objup,objuprotated,speed,flip);
+//    msleep(100);
+//    line(objuprotated,obj,speed,flip);
+//    msleep(100);
+//
+//    setPos(&objup,x,y,z+10,0,0,-pitchdown,grip);
+//    setPos(&objuprotated,x,y,z+10,theta,0,-pitchdown,grip);
+//    line(obj,objuprotated,speed,flip);
+//    msleep(100);
+//    line(objuprotated,objup,speed,flip);
+//    msleep(100);
+//    line(objup,dump,speed,flip);
+//    locker.unlock();
+//}
+
+int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos dump){
     unique_lock<mutex> locker(grabmu,defer_lock);
     if(!locker.try_lock()){
         cout << "already in use!" << endl;
         msleep(100);
         return 0;
     }
-    cout << "try=" << mu.try_lock() << endl;
+    double theta;
     double pitchdown = 45*degtorad;
     int grip = 100;
-    double x,y,z,theta,temptheta;
-    x = 100*relPos1[0] -0.5;
-    y = 100*relPos1[1] + 11;
-    z = 0.5;
-
     if(y < 12){
         cout << "ain't gonna wreck myself!!!" << endl;
         return 0;
     }
-    temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
     theta = fixtheta(x,temptheta);
     cout << "x=" << x << "  y=" << y << "   theta=" <<theta << endl;
     struct Pos tempopen, tempclosed, obj, objup, objuprotated, checkPos;
@@ -333,6 +374,7 @@ void setArmPos(struct Pos Pos, int flip){
 
 int main(void)
 {
+    double x,y,z,temptheta;
     double speed = 20; /* in cm/s */
     int flip = 1; /* implement this in a better way later plz...*/
     int toFind = 0;
@@ -356,22 +398,24 @@ int main(void)
     t.detach();
     looptieloop = wait();
     toFind = 42;
+    int counter = 0;
+    getVecs = true;
     while(looptieloop){
-        getVecs = true;
         unique_lock<mutex> locker(mu);
-        cond.wait(locker, [&]{return !getVecs;});// I dunno wtf this lambda thing is doing but it works
-        returnBlock(relPos1,relativeMatrix,speed, flip, dump);
+        cond.wait(locker, [&]{return !getVecs;});// I dunno how this lambda thing is doing it, but it works...
+        x = 100*relPos1[0]; y = 100*relPos1[1] + 11; z = 0.5;
+        temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
         locker.unlock();
-        //CAM.startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension,42);
-//        CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,42);
-//
-//        thread t(returnBlock,ref(relPos1),ref(relativeMatrix),ref(speed), ref(flip), ref(dump));
-//        t.detach();
-        //returnBlock(relPos1,relativeMatrix,speed, flip, dump);
-
-        looptieloop = wait();
         getVecs = true;
         toFind++;
+        returnBlock(x,y,z,temptheta,speed,flip,dump);
+        counter++;
+        setPos(&dump, -15,25,0.5 + 3*counter,0,0,-45*degtorad,100);
+        //looptieloop = wait();
+        if(toFind>44){
+            looptieloop = 0;
+            break;
+        }
     }
     return 1;
 }

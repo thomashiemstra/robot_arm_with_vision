@@ -145,7 +145,9 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
     Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_4X4_50);
     Ptr<aruco::CharucoBoard> charucoboard = aruco::CharucoBoard::create(5, 3, 0.0265f, 0.0198f, markerDictionary);
     Ptr<aruco::Board> board = charucoboard.staticCast<aruco::Board>();
-
+    int counter = 0;
+    double new_y,old_y;
+    double tempx,tempy;
     VideoCapture vid(0);
 
     if(!vid.isOpened()){
@@ -169,23 +171,34 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
         bool validPose = aruco::estimatePoseCharucoBoard(charucoCorners, charucoIds, charucoboard, cameraMatrix, distanceCoefficients, rvec, tvec);
         int Pos1 = findIndex(markerIds, toFindMarker);
 
-
         if(validPose)
             aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rvec, tvec, 0.12f);
-        if(Pos1 != -1){
+        if(Pos1 != -1 && getVecs && toFindMarker >= 42){ //blocks in the field start at marker number 42
             aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[Pos1], translationVectors[Pos1], 0.08f);
-            if(getVecs && toFindMarker >= 42){ //blocks in the field start at marker number 42
-                unique_lock<mutex> locker(mu);
-                findRelativeVectorCharuco(rvec, tvec, translationVectors[Pos1], relPos);
+            unique_lock<mutex> locker(mu);
+
+            findRelativeVectorCharuco(rvec, tvec, translationVectors[Pos1], relPos);
+            new_y = relPos[1];
+            if(new_y > old_y){
+                tempx = relPos[0];
+                tempy = new_y;
+                old_y = new_y;
                 findRotMatrixCharuco(rvec, rotationVectors[Pos1], relativeRotMatrix);
+            }
+            else if(new_y < old_y){
+                tempy = old_y;
+            }
+            counter ++;
+            if(counter == 20){
+                counter = 0;
                 getVecs = false;
+                relPos[0] = tempx;
+                relPos[1] = tempy;
+                old_y=0;
                 locker.unlock();
                 cond.notify_one();
             }
-
-
         }
-
 
         imshow("Webcam", frame);
         char key = (char)waitKey(1000/fps);
