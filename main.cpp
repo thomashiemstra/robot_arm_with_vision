@@ -20,8 +20,8 @@
 #define pi  3.14159265358979323846264338327950288419716939937510
 #define degtorad 0.01745329251994329576923690768488612713
 #define radtodeg 57.2957795130823208767981548141051703324
-#define ramp 2.0
-#define precision 5.0
+#define ramp 2.0 /* distance over which to accelerate. a is a result, not an input*/
+#define precision 5.0 /* steps per centimeter (it gets adjusted a little)*/
 
 using namespace cv;
 using namespace std;
@@ -95,89 +95,6 @@ void msleep(long ms){  /* delay function in miliseconds*/
 }
 
 /* this function is a mess and also it's cheating, please ignore */
-//void line(struct Pos start, struct Pos stop, double speed, int flip){ /* speed in cm/s */
-//    double j;
-//    double dx,dy,dz,r,x,y,z;
-//    double wait,current_r;
-//    double dalpha,dbeta,dgamma;
-//    double alpha,beta,gamma;
-//    double temp;
-//    double r_a; /* sum of the delta angles*/
-//    int dgrip;
-//    int steps;
-//
-//    double v_max = speed/1000.0; /* in cm per milisecond*/
-//    double  dr = 1.0/precision; /* amount of steps per centimeter */
-//    double mindelay = (dr/v_max);  /* amount of ms to wait between 2 steps */
-//    dx = stop.x - start.x;
-//    dy = stop.y - start.y;
-//    dz = stop.z - start.z;
-//    r = sqrt(dx*dx+dy*dy+dz*dz); /* total path length in centimeters */
-//    dalpha = stop.alpha - start.alpha;
-//    dbeta  = stop.beta - start.beta;
-//    dgamma = stop.gamma - start.gamma;
-//    r_a = abs((dalpha + dbeta + dgamma)/pi); /* a very rough estimate for the path traveled by the wrist*/
-//    dgrip = stop.grip - start.grip;
-//    steps = r*precision;
-//    if(r == 0){
-//        steps = r_a*200;
-//    }
-//
-//    /* v = a*r²+b for current_r<=ramp, v = -c*r²+d for current_r>= r - ramp*/
-//    /* why not just linear? */
-//    double a = (1.0/(ramp*ramp) )*( (dr/mindelay)-(dr/(increase*mindelay)) );
-//    double b = dr/(increase*mindelay);
-//    double c = ( (dr/mindelay) - (dr/(increase*mindelay)) ) / (2*r*ramp - ramp*ramp);
-//    double d = (dr/(increase*mindelay)) + c*r*r;
-//
-//    int n = ramp*precision; //amout of steps in the ramp up
-//    double time = 0;
-//    for(int i=0; i<n; i++){
-//        current_r = dr*i;
-//        time += dr/(a*current_r*current_r +b);
-//    }
-//    for(j = 0; j <= steps; j++){
-//    current_r = dr*j;
-//    x = start.x + ((j/steps)*dx);
-//    y = start.y + ((j/steps)*dy);
-//    z = start.z + ((j/steps)*dz);
-//    alpha = start.alpha + ((j/steps)*dalpha);
-//    beta = start.beta + ((j/steps)*dbeta);
-//    gamma = start.gamma + ((j/steps)*dgamma);
-//    ik.eulerMatrix(alpha,beta,gamma,t);
-//    ik.inverseKinematics(x,y,z,t,angles,flip);
-//    commandArduino(angles,start.grip);
-//    auto begin = std::chrono::high_resolution_clock::now();
-//    /* mess due to accelleration */
-//        if(r<=2*ramp){ /* path too short, v = 0.5*v_max everywhere */
-//            msleep(2*mindelay);
-//        }
-//        else if(r>2*ramp){  /* v = a*current_r² + b*/
-//            if (current_r <= ramp){
-//                wait = dr / ( a*current_r*current_r + b);  /* v = dr/delay so delay = dr/v */
-//                msleep(wait);
-//            }
-//        else if(current_r>ramp && current_r<r-ramp){
-//            msleep(wait);
-//        }
-//        else if(current_r >= r-ramp){ /*v = -c*current_r² + d */
-//            wait = dr/( -c*current_r*current_r + d);
-//            msleep(wait);
-//        }
-//        }
-///* end of mess */
-//    }
-//
-//    if(abs(dgrip) > 0){
-//        for (j=0;j<20;j++){
-//            temp = start.grip + (j/20)*dgrip;
-//            commandArduino(angles,temp);
-//            msleep(20);
-//        }
-//    }
-//}
-
-
 void line(struct Pos start, struct Pos stop, double speed, int flip){
     double j;
     double dx,dy,dz,dr,r,x,y,z;
@@ -205,6 +122,12 @@ void line(struct Pos start, struct Pos stop, double speed, int flip){
     ramp_steps = ramp*precision;
     ramp_distance = ramp_steps*dr; /* ramp_distance >= ramp now */
     double min_delay = dr/v_max;
+
+    if(r == 0){
+
+
+    }
+
 
     /* notice j=1, we should already be at start because of the previous step, otherwise... chaos anyway*/
     for(j=1; j<=steps; j++){
@@ -328,7 +251,7 @@ void setArmPos(struct Pos Pos, int flip){
 int main(void)
 {
     double x,y,z,temptheta;
-    double speed = 5; /* in cm/s */
+    double speed = 15; /* in cm/s */
     int flip = 1; /* implement this in a better way later plz...*/
     int toFind = 0;
     int looptieloop = 1;
@@ -345,34 +268,31 @@ int main(void)
     /* go to starting position */
     struct Pos dump;
     struct Pos temp;
-    setPos(&dump, -10,25,10,0,0,-45*degtorad,100);
-    setPos(&temp, 10,25,10,0,0,-45*degtorad,100);
+    setPos(&dump, -20,25,0.5,0,0,-45*degtorad,100);
     setArmPos(dump, flip);
-    line(dump,temp,speed,flip);
 
-
-//    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
-//    t.detach();
-//    looptieloop = wait();
-//    toFind = 42;
-//    int counter = 0;
-//    getVecs = true;
-//    while(looptieloop){
-//        unique_lock<mutex> locker(mu);
-//        cond.wait(locker, [&]{return !getVecs;});// I dunno how this lambda thing is doing it, but it works...
-//        x = 100*relPos1[0]; y = 100*relPos1[1] + 11; z = 0.5;
-//        temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
-//        locker.unlock();
-//        getVecs = true;
-//        toFind++;
-//        returnBlock(x,y,z,temptheta,speed,flip,dump);
-//        counter++;
-//        setPos(&dump, -15,25,0.5 + 3*counter,0,0,-45*degtorad,100);
-//        //looptieloop = wait();
-//        if(toFind>44){
-//            looptieloop = 0;
-//            break;
-//        }
-//    }
-//    return 1;
+    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
+    t.detach();
+    looptieloop = wait();
+    toFind = 42;
+    int counter = 0;
+    getVecs = true;
+    while(looptieloop){
+        unique_lock<mutex> locker(mu);
+        cond.wait(locker, [&]{return !getVecs;});// I dunno how this lambda thing is doing it, but it works...
+        x = 100*relPos1[0]; y = 100*relPos1[1] + 11; z = 0.5;
+        temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+        locker.unlock();
+        getVecs = true;
+        toFind++;
+        returnBlock(x,y,z,temptheta,speed,flip,dump);
+        counter++;
+        setPos(&dump, -20,25,0.5 + 3*counter,0,0,-45*degtorad,100);
+        //looptieloop = wait();
+        if(toFind>44){
+            looptieloop = 0;
+            break;
+        }
+    }
+    return 1;
 }
