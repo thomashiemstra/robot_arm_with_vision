@@ -140,7 +140,7 @@ void findRelativeVectorCharuco(Vec3d& baseRotation, Vec3d& baseTranslation, Vec3
 }
 
 /* this function can be used to get the camera into focus*/
-int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos, Mat& relativeRotMatrix, int& toFindMarker,bool &getVecs){
+int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos, Mat& relativeRotMatrix, int& toFindMarker,bool &getVecs, int& condition){
     Mat frame;
     Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_4X4_50);
     Ptr<aruco::CharucoBoard> charucoboard = aruco::CharucoBoard::create(5, 3, 0.0265f, 0.0198f, markerDictionary);
@@ -189,7 +189,7 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
 
         imshow("Webcam", frame);
         char key = (char)waitKey(1000/fps);
-        if(key == 27) break;
+        if(key == 27 || condition == 0) break;
 
     }
     return 1;

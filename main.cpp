@@ -33,7 +33,7 @@ Serial *arduino;
 IK ik = IK();
 cam CAM = cam(0,30);
 
-mutex mu;
+mutex mu,grabmu;
 condition_variable cond;
 
 const float arucoSquareDimension = 0.0265f; //in meters
@@ -274,7 +274,7 @@ double fixtheta(double x,double theta){
 }
 /* picks up the block found by "findVecsCharuco" and puts it at dumps location*/
 int returnBlock(vector<double>& relPos1, Mat& relativeMatrix, double speed, int flip, struct Pos dump){
-    unique_lock<mutex> locker(mu,defer_lock);
+    unique_lock<mutex> locker(grabmu,defer_lock);
     if(!locker.try_lock()){
         cout << "already in use!" << endl;
         msleep(100);
@@ -286,7 +286,7 @@ int returnBlock(vector<double>& relPos1, Mat& relativeMatrix, double speed, int 
     double x,y,z,theta,temptheta;
     x = 100*relPos1[0] -0.5;
     y = 100*relPos1[1] + 11;
-    z = 1;
+    z = 0.5;
 
     if(y < 12){
         cout << "ain't gonna wreck myself!!!" << endl;
@@ -331,15 +331,14 @@ void setArmPos(struct Pos Pos, int flip){
     commandArduino(angles,grip);
 }
 
-
 int main(void)
 {
-    double speed = 30; /* in cm/s */
+    double speed = 20; /* in cm/s */
     int flip = 1; /* implement this in a better way later plz...*/
     int toFind = 0;
+    int looptieloop = 1;
     vector<double> relPos1(3);
     bool getVecs = false;
-
 
     Mat cameraMatrix = Mat::eye(3,3, CV_64F);
     Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
@@ -350,21 +349,19 @@ int main(void)
     cout << "is connected: " << arduino->IsConnected() << std::endl;
     /* go to starting position */
     struct Pos dump;
-    setPos(&dump, -15,25,1,0,0,-45*degtorad,100);
+    setPos(&dump, -15,25,0.5,0,0,-45*degtorad,100);
     setArmPos(dump, flip);
 
-
-    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs) );
-    int looptieloop = wait();
+    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
+    t.detach();
+    looptieloop = wait();
     toFind = 42;
-    while(looptieloop == 1){
+    while(looptieloop){
         getVecs = true;
         unique_lock<mutex> locker(mu);
         cond.wait(locker, [&]{return !getVecs;});// I dunno wtf this lambda thing is doing but it works
         returnBlock(relPos1,relativeMatrix,speed, flip, dump);
         locker.unlock();
-
-
         //CAM.startWebcamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension,42);
 //        CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,42);
 //
@@ -376,5 +373,5 @@ int main(void)
         getVecs = true;
         toFind++;
     }
-
+    return 1;
 }

@@ -7,7 +7,7 @@
 #include<vector>
 
 #define d1  12.5   //ground to q1
-#define d6  13.5 //gripper to wrist
+#define d6  13 //gripper to wrist
 #define a_2 15    //q1 to q2
 #define a_3 17.2  //q2 to wrist
 #define pi  3.14159265358979323846264338327950288419716939937510
@@ -21,12 +21,13 @@ double epsilon = 0.05; /*use to avoid wrist singularities */
 /* arrays for the multimap function which makes the servos a bit more linear */
 double inangles[5]      =  {0,pi/4.0, pi/2.0, (3.0/4.0)*pi, pi};
 double servovals[7][5] =   	{	{225,345,465,600,740}, //0
-								{240,365,490,645,785}, //1
-								{230,355,485,640,770}, //2
+								{250,360,480,630,765}, //1
+								{240,360,485,625,760}, //2
 								{260,370,500,650,810}, //3
-								{270,365,465,580,690}, //4
+								{240,405,590,775,925}, //4
 								{180,360,555,770,960}, //5 goes from 0 to 270 aka -135 to +135
 								{265,400,565,730,890} };//6
+
 
 IK::IK(void){
 	return;
