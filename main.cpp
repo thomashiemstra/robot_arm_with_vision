@@ -81,7 +81,7 @@ void commandArduinoTest(vector<double>& angles, int grip){
     ticks[4] = ik.getServoTick((pi - angles[4]),4);
     ticks[5] = ik.getServoTick(angles[5],5);
     ticks[6] = ik.getServoTick((pi - angles[6]),6);
-    ticks[7] = 700 - 3.5*grip;
+    ticks[7] = 650 - 2.9*grip;
     sendStuff(ticks);
 }
 
@@ -115,24 +115,23 @@ void line(struct Pos start, struct Pos stop, double speed, int flip){
     dx = stop.x - start.x; dy = stop.y - start.y; dz = stop.z - start.z;
     r = sqrt(dx*dx+dy*dy+dz*dz); /* total path length in centimeters */
     dalpha = stop.alpha - start.alpha; dbeta  = stop.beta - start.beta; dgamma = stop.gamma - start.gamma;
-    r_a = (dalpha + dbeta + dgamma)/(2*pi); /* a verry rough estimate for the path traveled by the wrist*/
+    r_a = abs((dalpha + dbeta + dgamma)/(2*pi)); /* a verry rough estimate for the path traveled by the wrist*/
     dgrip = stop.grip - start.grip;
     steps = floor(r*precision); /* steps has to be a whole number resulting in dr >= 1/precision*/
     dr = r/steps;
     ramp_steps = ramp*precision;
     ramp_distance = ramp_steps*dr; /* ramp_distance >= ramp now */
     double min_delay = dr/v_max;
-
     if(r == 0){
-
-
+        steps = r_a*200;
+        wait = 40;
     }
-
 
     /* notice j=1, we should already be at start because of the previous step, otherwise... chaos anyway*/
     for(j=1; j<=steps; j++){
         current_r = dr*j;
         x = start.x + ((j/steps)*dx);
+        cout << x << endl;
         y = start.y + ((j/steps)*dy);
         z = start.z + ((j/steps)*dz);
         alpha = start.alpha + ((j/steps)*dalpha);
@@ -142,10 +141,10 @@ void line(struct Pos start, struct Pos stop, double speed, int flip){
         ik.inverseKinematics(x,y,z,t,angles,flip);
 
         if(r<2*ramp){
-            msleep(2*min_delay); /* path too short, half max speed without acceleration*/
+            msleep(wait); /* path too short, half max speed without acceleration*/
         }
 
-        if(current_r <= ramp + 0.01 ){ /* 0.01 in case dr gets rounded down a bit somehow*/
+        else if(current_r <= ramp + 0.01 ){ /* 0.01 in case dr gets rounded down a bit somehow*/
             dv = j*(v_max/ramp_steps);
             wait = dr/dv;    /* dt = dr/dv, dv=j*(speed/ramp_steps)*/
             msleep(wait);
@@ -159,6 +158,13 @@ void line(struct Pos start, struct Pos stop, double speed, int flip){
             msleep(wait);
         }
         commandArduino(angles,start.grip);
+    }
+    if(abs(dgrip) > 0){
+        for (j=0;j<20;j++){
+            temp = start.grip + (j/20)*dgrip;
+            commandArduino(angles,temp);
+            msleep(20);
+        }
     }
 }
 
@@ -195,6 +201,7 @@ double fixtheta(double x,double theta){
         }
         return theta;
 }
+
 /* picks up the block found by "findVecsCharuco" and puts it at dumps location*/
 int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos dump){
     unique_lock<mutex> locker(grabmu,defer_lock);
@@ -242,7 +249,6 @@ void setArmPos(struct Pos Pos, int flip){
     x = Pos.x; y = Pos.y;  z = Pos.z;
     a = Pos.alpha; b = Pos.beta; g = Pos.gamma;
     int grip = Pos.grip;
-
     ik.eulerMatrix(a,b,g,t);
     ik.inverseKinematics(x,y,z,t,angles,flip);
     commandArduino(angles,grip);
@@ -253,7 +259,7 @@ int main(void)
     double x,y,z,temptheta;
     double speed = 15; /* in cm/s */
     int flip = 1; /* implement this in a better way later plz...*/
-    int toFind = 0;
+    int toFind = 42;
     int looptieloop = 1;
     vector<double> relPos1(3);
     bool getVecs = false;
@@ -269,12 +275,12 @@ int main(void)
     struct Pos dump;
     struct Pos temp;
     setPos(&dump, -20,25,0.5,0,0,-45*degtorad,100);
+    setPos(&temp, -20,25,0.5,45*degtorad,0,-45*degtorad,100);
     setArmPos(dump, flip);
 
     thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
     t.detach();
     looptieloop = wait();
-    toFind = 42;
     int counter = 0;
     getVecs = true;
     while(looptieloop){

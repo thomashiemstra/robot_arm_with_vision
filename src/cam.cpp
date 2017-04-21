@@ -189,7 +189,7 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
                 tempy = old_y;
             }
             counter ++;
-            if(counter == 20){
+            if(counter == 5){
                 counter = 0;
                 getVecs = false;
                 relPos[0] = tempx;
