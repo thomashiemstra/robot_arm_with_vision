@@ -57,7 +57,6 @@ void sendStuff(int16_t *val){ //sending 7 2 byte ints over serial
     }
 	arduino->WriteData(bytes,16);
 }
-
 /* gripper position is a percentage, 100% is open*/
 void commandArduino(double angles[7], int grip){
     int16_t ticks[8];
@@ -94,11 +93,10 @@ void setArmPos(struct Pos Pos, int flip){
 void line(struct Pos start, struct Pos stop, double speed, int flip){
     double j;
     double dx,dy,dz,dr,r,x,y,z;
-    double wait,current_r;
+    double wait,current_r, ramp_distance;
     double dalpha,dbeta,dgamma;
     double alpha,beta,gamma;
     double temp;
-    double ramp_distance;
     double dv;
     vector<vector<double >> anglesArray;
     double r_a; /* sum of the delta angles*/
@@ -123,6 +121,7 @@ void line(struct Pos start, struct Pos stop, double speed, int flip){
     }
     /* notice j=1, we should already be at start because of the previous step, otherwise... chaos anyway*/
     for(j=1; j<=steps; j++){
+
         current_r = dr*j;
         x = start.x + ((j/steps)*dx);
         y = start.y + ((j/steps)*dy);
@@ -133,23 +132,25 @@ void line(struct Pos start, struct Pos stop, double speed, int flip){
         ik.eulerMatrix(alpha,beta,gamma,t);
         ik.inverseKinematics(x,y,z,t,angles,flip);
 
+
         if(r<2*ramp){
             msleep(wait); /* path too short, half max speed without acceleration*/
         }
 
-        else if(current_r <= ramp + 0.01 ){ /* 0.01 in case dr gets rounded down a bit somehow*/
+        else if(current_r <= ramp_distance + 0.01 ){ /* 0.01 in case dr gets rounded down a bit somehow*/
             dv = j*(v_max/ramp_steps);
             wait = dr/dv;    /* dt = dr/dv, dv=j*(speed/ramp_steps)*/
             msleep(wait);
         }
-        else if(current_r > ramp && current_r <= r - ramp + 0.01){
+        else if(current_r > ramp_distance && current_r <= r - ramp_distance + 0.01){
             msleep(min_delay);
         }
-        else if(current_r > r - ramp + 0.01){
+        else if(current_r > r - ramp_distance + 0.01){
             dv = v_max - ((j - (steps-ramp_steps)-1) *(v_max/ramp_steps));
             wait = dr/dv;
             msleep(wait);
         }
+
         commandArduino(angles,start.grip);
     }
     if(abs(dgrip) > 0){
@@ -197,9 +198,10 @@ double fixtheta(double x,double theta){
 
 void showOff(double speed){
     int flip = 0;
+    int j;
     struct Pos start, leftlow, rightlow, leftup, rightup;
-    struct Pos start1,start2,start3,start4;
-    setPos(&start,0,25,15,0,0,0,10);
+    struct Pos start1,start2,start3;
+    setPos(&start,0,25,20,0,0,0,10);
     setPos(&leftlow,-20,30,6,0,0,0,10);
     setPos(&rightlow,20,30,6,0,0,0,10);
     setPos(&leftup,-20,30,30,0,0,0,10);
@@ -217,15 +219,31 @@ void showOff(double speed){
     line(rightlow,leftlow,speed,flip);
     line(leftlow,start,speed,flip);
 
-    setPos(&start1,0,25,15,pi/2,0,0,10);
-    setPos(&start2,0,25,15,-pi/2,0,0,10);
-    setPos(&start3,0,25,15,-pi/2,0,-pi/4,10);
-    setPos(&start4,0,25,15,pi/2,0,pi/4,10);
+    setPos(&start1,0,25,20,pi/2,0,0,10);
+    setPos(&start2,0,25,20,-pi/2,0,0,10);
+    setPos(&start3,0,25,20,pi/2,0,0,10);
     line(start,start1,speed,flip);
     line(start1,start2,speed,flip);
     line(start2,start3,speed,flip);
-    line(start3,start4,speed,flip);
-    line(start4,start,speed,flip);
+    double dummy = 70;
+
+    /* I don't have a function to draw circles with the wrist, don't think I need one either tbh.*/
+    for (j=0; j<=dummy; j++){
+       ik.eulerMatrix(cos((j/dummy)*pi)*pi/2,0,sin((j/dummy)*pi)*pi/2,t);
+       ik.inverseKinematics(0,25,20,t,angles,flip);
+       commandArduino(angles,10);
+       msleep(50);
+   }
+
+   for (j=0; j<=dummy; j++){
+       ik.eulerMatrix(-cos((j/dummy)*pi)*pi/2,0,-sin((j/dummy)*pi)*pi/2,t);
+       ik.inverseKinematics(0,25,20,t,angles,flip);
+       commandArduino(angles,10);
+       msleep(50);
+    }
+    line(start3,start,speed,flip);
+
+
 
 
 }
@@ -246,7 +264,7 @@ int returnBlock(double x, double y, double z, double temptheta, double speed, in
     }
     theta = fixtheta(x,temptheta);
     cout << "x=" << x << "  y=" << y << "   theta=" <<theta << endl;
-    struct Pos tempopen, tempclosed, obj, objup, objuprotated, checkPos;
+    struct Pos  obj, objup, objuprotated;
 
     setPos(&objup,x,y,z+10,0,0,-pitchdown,grip);
     setPos(&objuprotated,x,y,z+10,theta,0,-pitchdown,grip);
@@ -269,8 +287,8 @@ int returnBlock(double x, double y, double z, double temptheta, double speed, in
     msleep(100);
     line(objup,dump,speed,flip);
     locker.unlock();
+    return 1;
 }
-
 
 
 int main(void)
@@ -278,7 +296,7 @@ int main(void)
     double x,y,z,temptheta;
     double speed = 25; /* in cm/s */
     int flip = 1; /* implement this in a better way later plz...*/
-    int toFind = 42;
+    int toFind = 43;
     int looptieloop = 1;
     vector<double> relPos1(3);
     bool getVecs = false;
@@ -290,41 +308,39 @@ int main(void)
     /* connect to arduino*/
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
-    /* go to starting position */
 
-//    struct Pos start;
-//    setPos(&start,0,25,15,0,0,0,10);
-//    setArmPos(start,0);
-//    wait();
-//    showOff(speed);
+    struct Pos start;
+    setPos(&start,0,25,20,0,0,0,10);
+    setArmPos(start,0);
+    wait();
+    showOff(speed);
 
-    struct Pos dump;
-    struct Pos temp;
-    setPos(&dump, -20,25,0.5,0,0,-45*degtorad,100);
-    setPos(&temp, -20,25,0.5,45*degtorad,0,-45*degtorad,100);
-    setArmPos(dump, flip);
-
-    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
-    t.detach();
-    looptieloop = wait();
-    int counter = 0;
-    getVecs = true;
-    while(looptieloop){
-        unique_lock<mutex> locker(mu);
-        cond.wait(locker, [&]{return !getVecs;});// I dunno how this lambda thing is doing it, but it works...
-        x = 100*relPos1[0]; y = 100*relPos1[1] + 10; z = 0.5;
-        temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
-        locker.unlock();
-        getVecs = true;
-        toFind++;
-        returnBlock(x,y,z,temptheta,speed,flip,dump);
-        counter++;
-        setPos(&dump, -20,25,0.5 + 3*counter,0,0,-45*degtorad,100);
-        //looptieloop = wait();
-        if(toFind>44){
-            looptieloop = 0;
-            break;
-        }
-    }
-    return 1;
+//    /* go to starting position */
+//    struct Pos dump;
+//    setPos(&dump, -20,25,0.5,0,0,-45*degtorad,100);
+//    setArmPos(dump, flip);
+//
+//    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
+//    t.detach();
+//    looptieloop = wait();
+//    int counter = 0;
+//    getVecs = true;
+//    while(looptieloop){
+//        unique_lock<mutex> locker(mu);
+//        cond.wait(locker, [&]{return !getVecs;});// I dunno how this lambda thing is doing it, but it works...
+//        x = 100*relPos1[0]; y = 100*relPos1[1] + 10; z = 0.5;
+//        temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+//        locker.unlock();
+//        getVecs = true;
+//        toFind++;
+//        returnBlock(x,y,z,temptheta,speed,flip,dump);
+//        counter++;
+//        setPos(&dump, -20,25,0.5 + 3*counter,0,0,-45*degtorad,100);
+//        //looptieloop = wait();
+//        if(toFind>44){
+//            looptieloop = 0;
+//            break;
+//        }
+//    }
+//    return 1;
 }

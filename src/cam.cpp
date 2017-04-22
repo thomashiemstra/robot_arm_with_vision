@@ -154,6 +154,8 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
         return -1;
         cout << "no dice" << endl;
     }
+    vid.set(CV_CAP_PROP_FRAME_WIDTH,1280);
+    vid.set(CV_CAP_PROP_FRAME_HEIGHT,720);
     namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
     while(true){
         if(!vid.read(frame))
@@ -237,7 +239,6 @@ bool cam::getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficie
     }
     return false;
 }
-
 
 int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos, Mat& relativeRotMatrix, int toFindMarker){
     Mat frame;

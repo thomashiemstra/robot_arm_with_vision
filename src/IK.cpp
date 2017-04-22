@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <time.h>
 #include<vector>
+#include <chrono>
 
 #define d1  12.5   //ground to q1
 #define d6  13 //gripper to wrist
@@ -23,7 +24,7 @@ double inangles[5]      =  {0,pi/4.0, pi/2.0, (3.0/4.0)*pi, pi};
 double servovals[7][5] =   	{	{225,345,465,600,740}, //0
 								{250,360,480,630,765}, //1
 								{240,360,485,625,760}, //2
-								{260,370,500,650,810}, //3
+								{260,370,500,650,780}, //3
 								{240,405,590,775,925}, //4
 								{180,360,555,770,960}, //5 goes from 0 to 270 aka -135 to +135
 								{265,400,565,730,890} };//6
