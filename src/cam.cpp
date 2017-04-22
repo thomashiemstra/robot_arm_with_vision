@@ -170,11 +170,12 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
                 aruco::interpolateCornersCharuco(markerCorners, markerIds, frame, charucoboard, charucoCorners, charucoIds, cameraMatrix, distanceCoefficients);
         bool validPose = aruco::estimatePoseCharucoBoard(charucoCorners, charucoIds, charucoboard, cameraMatrix, distanceCoefficients, rvec, tvec);
         int Pos1 = findIndex(markerIds, toFindMarker);
+        if(Pos1 != -1)
+            aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[Pos1], translationVectors[Pos1], 0.08f);
 
         if(validPose)
             aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rvec, tvec, 0.12f);
         if(Pos1 != -1 && getVecs && toFindMarker >= 42){ //blocks in the field start at marker number 42
-            aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[Pos1], translationVectors[Pos1], 0.08f);
             unique_lock<mutex> locker(mu);
 
             findRelativeVectorCharuco(rvec, tvec, translationVectors[Pos1], relPos);

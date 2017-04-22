@@ -72,19 +72,6 @@ void commandArduino(double angles[7], int grip){
     sendStuff(ticks);
 }
 
-void commandArduinoTest(vector<double>& angles, int grip){
-    int16_t ticks[8];
-    ticks[0] = ik.getServoTick(angles[1],0);
-    ticks[1] = ik.getServoTick(angles[2],1);
-    ticks[2] = ik.getServoTick(pi - angles[2],2);
-    ticks[3] = ik.getServoTick(angles[3],3);
-    ticks[4] = ik.getServoTick((pi - angles[4]),4);
-    ticks[5] = ik.getServoTick(angles[5],5);
-    ticks[6] = ik.getServoTick((pi - angles[6]),6);
-    ticks[7] = 650 - 2.9*grip;
-    sendStuff(ticks);
-}
-
 void msleep(long ms){  /* delay function in miliseconds*/
     long us;
     us = 1000*ms;
@@ -94,6 +81,15 @@ void msleep(long ms){  /* delay function in miliseconds*/
     nanosleep(&wait, NULL);
 }
 
+void setArmPos(struct Pos Pos, int flip){
+    double x,y,z,a,b,g;
+    x = Pos.x; y = Pos.y;  z = Pos.z;
+    a = Pos.alpha; b = Pos.beta; g = Pos.gamma;
+    int grip = Pos.grip;
+    ik.eulerMatrix(a,b,g,t);
+    ik.inverseKinematics(x,y,z,t,angles,flip);
+    commandArduino(angles,grip);
+}
 /* this function is a mess and also it's cheating, please ignore */
 void line(struct Pos start, struct Pos stop, double speed, int flip){
     double j;
@@ -109,7 +105,6 @@ void line(struct Pos start, struct Pos stop, double speed, int flip){
     int dgrip;
     int steps;
     int ramp_steps;
-
     double v_max = speed/1000.0; /* the delay function is in milliseconds so we convert to cm per millisecond*/
 
     dx = stop.x - start.x; dy = stop.y - start.y; dz = stop.z - start.z;
@@ -126,12 +121,10 @@ void line(struct Pos start, struct Pos stop, double speed, int flip){
         steps = r_a*200;
         wait = 40;
     }
-
     /* notice j=1, we should already be at start because of the previous step, otherwise... chaos anyway*/
     for(j=1; j<=steps; j++){
         current_r = dr*j;
         x = start.x + ((j/steps)*dx);
-        cout << x << endl;
         y = start.y + ((j/steps)*dy);
         z = start.z + ((j/steps)*dz);
         alpha = start.alpha + ((j/steps)*dalpha);
@@ -202,6 +195,40 @@ double fixtheta(double x,double theta){
         return theta;
 }
 
+void showOff(double speed){
+    int flip = 0;
+    struct Pos start, leftlow, rightlow, leftup, rightup;
+    struct Pos start1,start2,start3,start4;
+    setPos(&start,0,25,15,0,0,0,10);
+    setPos(&leftlow,-20,30,6,0,0,0,10);
+    setPos(&rightlow,20,30,6,0,0,0,10);
+    setPos(&leftup,-20,30,30,0,0,0,10);
+    setPos(&rightup,20,30,30,0,0,0,10);
+    line(start,leftlow,speed,flip);
+    line(leftlow,leftup,speed,flip);
+    flip = 1;
+    setArmPos(leftup,flip);
+    msleep(500);
+    line(leftup,rightup,speed,flip);
+    flip = 0;
+    setArmPos(rightup,flip);
+    msleep(500);
+    line(rightup,rightlow,speed,flip);
+    line(rightlow,leftlow,speed,flip);
+    line(leftlow,start,speed,flip);
+
+    setPos(&start1,0,25,15,pi/2,0,0,10);
+    setPos(&start2,0,25,15,-pi/2,0,0,10);
+    setPos(&start3,0,25,15,-pi/2,0,-pi/4,10);
+    setPos(&start4,0,25,15,pi/2,0,pi/4,10);
+    line(start,start1,speed,flip);
+    line(start1,start2,speed,flip);
+    line(start2,start3,speed,flip);
+    line(start3,start4,speed,flip);
+    line(start4,start,speed,flip);
+
+
+}
 /* picks up the block found by "findVecsCharuco" and puts it at dumps location*/
 int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos dump){
     unique_lock<mutex> locker(grabmu,defer_lock);
@@ -244,20 +271,12 @@ int returnBlock(double x, double y, double z, double temptheta, double speed, in
     locker.unlock();
 }
 
-void setArmPos(struct Pos Pos, int flip){
-    double x,y,z,a,b,g;
-    x = Pos.x; y = Pos.y;  z = Pos.z;
-    a = Pos.alpha; b = Pos.beta; g = Pos.gamma;
-    int grip = Pos.grip;
-    ik.eulerMatrix(a,b,g,t);
-    ik.inverseKinematics(x,y,z,t,angles,flip);
-    commandArduino(angles,grip);
-}
+
 
 int main(void)
 {
     double x,y,z,temptheta;
-    double speed = 15; /* in cm/s */
+    double speed = 25; /* in cm/s */
     int flip = 1; /* implement this in a better way later plz...*/
     int toFind = 42;
     int looptieloop = 1;
@@ -272,6 +291,13 @@ int main(void)
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
     /* go to starting position */
+
+//    struct Pos start;
+//    setPos(&start,0,25,15,0,0,0,10);
+//    setArmPos(start,0);
+//    wait();
+//    showOff(speed);
+
     struct Pos dump;
     struct Pos temp;
     setPos(&dump, -20,25,0.5,0,0,-45*degtorad,100);
@@ -286,7 +312,7 @@ int main(void)
     while(looptieloop){
         unique_lock<mutex> locker(mu);
         cond.wait(locker, [&]{return !getVecs;});// I dunno how this lambda thing is doing it, but it works...
-        x = 100*relPos1[0]; y = 100*relPos1[1] + 11; z = 0.5;
+        x = 100*relPos1[0]; y = 100*relPos1[1] + 10; z = 0.5;
         temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
         locker.unlock();
         getVecs = true;
