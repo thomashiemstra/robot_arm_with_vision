@@ -30,7 +30,7 @@ void msleep(long ms);
 
 Serial *arduino;
 IK ik = IK();
-cam CAM = cam(0,30);
+cam CAM = cam(0,30); /* 30 is as high as she'll go*/
 
 mutex mu,grabmu;
 condition_variable cond;
@@ -248,7 +248,7 @@ void showOff(double speed){
 
 }
 /* picks up the block found by "findVecsCharuco" and puts it at dumps location*/
-int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos dump){
+int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos drop,int counter){
     unique_lock<mutex> locker(grabmu,defer_lock);
     if(!locker.try_lock()){
         cout << "already in use!" << endl;
@@ -264,8 +264,10 @@ int returnBlock(double x, double y, double z, double temptheta, double speed, in
     }
     theta = fixtheta(x,temptheta);
     cout << "x=" << x << "  y=" << y << "   theta=" <<theta << endl;
-    struct Pos  obj, objup, objuprotated;
+    struct Pos  obj, objup, objuprotated, dump,dumpup;
 
+    setPos(&dump, drop.x,drop.y,drop.z + 2.8*counter,drop.alpha,drop.beta,drop.gamma,100);
+    setPos(&dumpup, drop.x,drop.y,drop.z + 2.8*(counter+1),drop.alpha,drop.beta,drop.gamma,0);
     setPos(&objup,x,y,z+10,0,0,-pitchdown,grip);
     setPos(&objuprotated,x,y,z+10,theta,0,-pitchdown,grip);
 
@@ -276,7 +278,7 @@ int returnBlock(double x, double y, double z, double temptheta, double speed, in
     setPos(&obj,x,y,z,theta,0,-pitchdown,grip);
     line(objup,objuprotated,speed,flip);
     msleep(100);
-    line(objuprotated,obj,speed,flip);
+    line(objuprotated,obj,speed/2,flip);
     msleep(100);
 
     setPos(&objup,x,y,z+10,0,0,-pitchdown,grip);
@@ -285,11 +287,13 @@ int returnBlock(double x, double y, double z, double temptheta, double speed, in
     msleep(100);
     line(objuprotated,objup,speed,flip);
     msleep(100);
-    line(objup,dump,speed,flip);
+    line(objup,dumpup,speed,flip);
+    line(dumpup,dump,speed,flip);
+    setPos(&dumpup, drop.x,drop.y,drop.z + 2.8*(counter+1),drop.alpha,drop.beta,drop.gamma,100);
+    line(dump,dumpup,speed,flip);
     locker.unlock();
     return 1;
 }
-
 
 int main(void)
 {
@@ -309,38 +313,37 @@ int main(void)
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
 
-    struct Pos start;
-    setPos(&start,0,25,20,0,0,0,10);
-    setArmPos(start,0);
-    wait();
-    showOff(speed);
+//    struct Pos start;
+//    setPos(&start,0,25,20,0,0,0,10);
+//    setArmPos(start,0);
+//    wait();
+//    showOff(speed);
 
-//    /* go to starting position */
-//    struct Pos dump;
-//    setPos(&dump, -20,25,0.5,0,0,-45*degtorad,100);
-//    setArmPos(dump, flip);
-//
-//    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
-//    t.detach();
-//    looptieloop = wait();
-//    int counter = 0;
-//    getVecs = true;
-//    while(looptieloop){
-//        unique_lock<mutex> locker(mu);
-//        cond.wait(locker, [&]{return !getVecs;});// I dunno how this lambda thing is doing it, but it works...
-//        x = 100*relPos1[0]; y = 100*relPos1[1] + 10; z = 0.5;
-//        temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
-//        locker.unlock();
-//        getVecs = true;
-//        toFind++;
-//        returnBlock(x,y,z,temptheta,speed,flip,dump);
-//        counter++;
-//        setPos(&dump, -20,25,0.5 + 3*counter,0,0,-45*degtorad,100);
-//        //looptieloop = wait();
-//        if(toFind>44){
-//            looptieloop = 0;
-//            break;
-//        }
-//    }
-//    return 1;
+    /* go to starting position */
+    struct Pos drop;
+    setPos(&drop, -20,25,0.5,0,0,-45*degtorad,100);
+    setArmPos(drop, flip);
+
+    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
+    t.detach();
+    looptieloop = wait();
+    int counter = 0;
+    getVecs = true;
+    while(looptieloop){
+        unique_lock<mutex> locker(mu);
+        cond.wait(locker, [&]{return !getVecs;});// I dunno how this lambda thing is doing it, but it works...
+        x = 100*relPos1[0] -0.5; y = 100*relPos1[1] + 10.5; z = 0.5;
+        temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+        locker.unlock();
+        getVecs = true;
+        toFind++;
+        returnBlock(x,y,z,temptheta,speed,flip,drop,counter);
+        counter++;
+        //looptieloop = wait();
+        if(toFind>45){
+            looptieloop = 0;
+            break;
+        }
+    }
+    return 1;
 }

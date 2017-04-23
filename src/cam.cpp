@@ -116,7 +116,7 @@ void cam::findRelativeVector(int basePos, int Pos, vector<Vec3d>& translationVec
     }
 }
 
-void findRelativeVectorCharuco(Vec3d& baseRotation, Vec3d& baseTranslation, Vec3d& posTranslation,  vector<double>& posRes){
+void cam::findRelativeVectorCharuco(Vec3d& baseRotation, Vec3d& baseTranslation, Vec3d& posTranslation,  vector<double>& posRes){
     int i,j;
     vector<double> R(3);
     Mat baseRotMatrix = Mat::eye(3,3, CV_64F);
@@ -139,6 +139,8 @@ void findRelativeVectorCharuco(Vec3d& baseRotation, Vec3d& baseTranslation, Vec3
     }
 }
 
+
+
 /* this function can be used to get the camera into focus*/
 int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos, Mat& relativeRotMatrix, int& toFindMarker,bool &getVecs, int& condition){
     Mat frame;
@@ -152,20 +154,18 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
 
     if(!vid.isOpened()){
         return -1;
-        cout << "no dice" << endl;
     }
-    vid.set(CV_CAP_PROP_FRAME_WIDTH,1280);
-    vid.set(CV_CAP_PROP_FRAME_HEIGHT,720);
     namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
     while(true){
+        auto begin = std::chrono::high_resolution_clock::now();
         if(!vid.read(frame))
             break;
-        vector<Vec3d> rotationVectors, translationVectors;
         Vec3d rvec, tvec;
+        vector<Vec3d> rotationVectors, translationVectors;
         vector< Point2f > charucoCorners;
         vector< vector< Point2f > > markerCorners, rejectedMarkers;
         vector<int> markerIds, charucoIds;
-
+        /* detect everything*/
         aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
         aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimension, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
         if(markerIds.size()>0)
@@ -174,12 +174,11 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
         int Pos1 = findIndex(markerIds, toFindMarker);
         if(Pos1 != -1)
             aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[Pos1], translationVectors[Pos1], 0.08f);
-
         if(validPose)
             aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rvec, tvec, 0.12f);
+        /* find x,y and theta(rotation around the z-axis)*/
         if(Pos1 != -1 && getVecs && toFindMarker >= 42){ //blocks in the field start at marker number 42
             unique_lock<mutex> locker(mu);
-
             findRelativeVectorCharuco(rvec, tvec, translationVectors[Pos1], relPos);
             new_y = relPos[1];
             if(new_y > old_y){
@@ -192,7 +191,7 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
                 tempy = old_y;
             }
             counter ++;
-            if(counter == 5){
+            if(counter == 30){
                 counter = 0;
                 getVecs = false;
                 relPos[0] = tempx;
@@ -202,11 +201,17 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
                 cond.notify_one();
             }
         }
-
         imshow("Webcam", frame);
-        char key = (char)waitKey(1000/fps);
-        if(key == 27 || condition == 0) break;
-
+        /*make sure we wait exactly 1000/fps milliseconds */
+        waitKey(1); /* without this imshow shows nothing*/
+        auto temp = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> fp_ms = temp - begin;
+        double test = fp_ms.count(); /* time elapsed so far*/
+        int wait = (int)((1000.0/fps) - test); /* true fps time*/
+        if(wait<0)
+            wait = 1;
+        std::this_thread::sleep_for(std::chrono::milliseconds(wait));
+        if(condition == 0) break;
     }
     return 1;
 }
@@ -307,7 +312,6 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
         wait = 1;
 
     std::this_thread::sleep_for(std::chrono::milliseconds(wait));
-
     //auto end = std::chrono::high_resolution_clock::now();
     //std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end-begin).count() << "ms" << std::endl;
     }
