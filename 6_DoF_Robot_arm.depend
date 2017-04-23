@@ -6,7 +6,7 @@
 
 1483819804 c:\users\thomas\desktop\6_dof_robot_arm\ik\ik.h
 
-1492637215 source:c:\users\thomas\desktop\6_dof_robot_arm\main.cpp
+1492947805 source:c:\users\thomas\desktop\6_dof_robot_arm\main.cpp
 	<iostream>
 	<stdio.h>
 	<time.h>
@@ -49,7 +49,7 @@
 	"Serial.h"
 	<stdint.h>
 
-1492637027 source:c:\users\thomas\desktop\6_dof_robot_arm\src\cam.cpp
+1492946875 source:c:\users\thomas\desktop\6_dof_robot_arm\src\cam.cpp
 	"cam.h"
 	<chrono>
 	<thread>
@@ -65,10 +65,13 @@
 	<sstream>
 	<fstream>
 	<list>
+	<thread>
+	<mutex>
+	<condition_variable>
 	<opencv2/opencv.hpp>
 	<opencv2/aruco/charuco.hpp>
 
-1492634509 c:\users\thomas\desktop\6_dof_robot_arm\include\cam.h
+1492946875 c:\users\thomas\desktop\6_dof_robot_arm\include\cam.h
 	<stdio.h>
 	<time.h>
 	<stdlib.h>
@@ -81,6 +84,9 @@
 	<sstream>
 	<fstream>
 	<list>
+	<thread>
+	<mutex>
+	<condition_variable>
 	<opencv2/opencv.hpp>
 	<opencv2/aruco/charuco.hpp>
 
@@ -93,7 +99,7 @@
 	<stdlib.h>
 	<stdint.h>
 
-1492634509 source:c:\users\thomas\desktop\6_dof_robot_arm\src\ik.cpp
+1492877623 source:c:\users\thomas\desktop\6_dof_robot_arm\src\ik.cpp
 	"IK.h"
 	<unistd.h>
 	<math.h>
@@ -101,6 +107,7 @@
 	<stdio.h>
 	<time.h>
 	<vector>
+	<chrono>
 
 1487111492 source:c:\users\thomas\desktop\6_dof_robot_arm\src\serial.cpp
 	"Serial.h"

@@ -20,9 +20,8 @@
 #define pi  3.14159265358979323846264338327950288419716939937510
 #define degtorad 0.01745329251994329576923690768488612713
 #define radtodeg 57.2957795130823208767981548141051703324
-#define precision 5   /* amount of steps per centimeter */
-#define increase 6.0      /* I choose to lowest speed to be a factor of 4 smaller than the max speed */
-#define ramp 2.0          /* distance over which to increase/decrease speed, set to 1 centimeter */
+#define ramp 2.0 /* distance over which to accelerate. a is a result, not an input*/
+#define precision 5.0 /* steps per centimeter (it gets adjusted a little)*/
 
 using namespace cv;
 using namespace std;
@@ -31,7 +30,10 @@ void msleep(long ms);
 
 Serial *arduino;
 IK ik = IK();
-cam CAM = cam(0,60);
+cam CAM = cam(0,30); /* 30 is as high as she'll go*/
+
+mutex mu,grabmu;
+condition_variable cond;
 
 const float arucoSquareDimension = 0.0265f; //in meters
 double angles[7] = {0};
@@ -55,26 +57,12 @@ void sendStuff(int16_t *val){ //sending 7 2 byte ints over serial
     }
 	arduino->WriteData(bytes,16);
 }
-
 /* gripper position is a percentage, 100% is open*/
 void commandArduino(double angles[7], int grip){
     int16_t ticks[8];
     ticks[0] = ik.getServoTick(angles[1],0);
     ticks[1] = ik.getServoTick(pi - angles[2],1);
     ticks[2] = ik.getServoTick(angles[2],2);
-    ticks[3] = ik.getServoTick(angles[3],3);
-    ticks[4] = ik.getServoTick((pi - angles[4]),4);
-    ticks[5] = ik.getServoTick(angles[5],5);
-    ticks[6] = ik.getServoTick((pi - angles[6]),6);
-    ticks[7] = 700 - 3.5*grip;
-    sendStuff(ticks);
-}
-
-void commandArduinoTest(vector<double>& angles, int grip){
-    int16_t ticks[8];
-    ticks[0] = ik.getServoTick(angles[1],0);
-    ticks[1] = ik.getServoTick(angles[2],1);
-    ticks[2] = ik.getServoTick(pi - angles[2],2);
     ticks[3] = ik.getServoTick(angles[3],3);
     ticks[4] = ik.getServoTick((pi - angles[4]),4);
     ticks[5] = ik.getServoTick(angles[5],5);
@@ -92,71 +80,78 @@ void msleep(long ms){  /* delay function in miliseconds*/
     nanosleep(&wait, NULL);
 }
 
+void setArmPos(struct Pos Pos, int flip){
+    double x,y,z,a,b,g;
+    x = Pos.x; y = Pos.y;  z = Pos.z;
+    a = Pos.alpha; b = Pos.beta; g = Pos.gamma;
+    int grip = Pos.grip;
+    ik.eulerMatrix(a,b,g,t);
+    ik.inverseKinematics(x,y,z,t,angles,flip);
+    commandArduino(angles,grip);
+}
 /* this function is a mess and also it's cheating, please ignore */
-void line(struct Pos start, struct Pos stop, double speed, int flip){ /* speed in cm/s */
+void line(struct Pos start, struct Pos stop, double speed, int flip){
     double j;
-    double dx,dy,dz,r,x,y,z;
-    double wait,current_r;
+    double dx,dy,dz,dr,r,x,y,z;
+    double wait,current_r, ramp_distance;
     double dalpha,dbeta,dgamma;
     double alpha,beta,gamma;
     double temp;
+    double dv;
+    vector<vector<double >> anglesArray;
     double r_a; /* sum of the delta angles*/
     int dgrip;
     int steps;
+    int ramp_steps;
+    double v_max = speed/1000.0; /* the delay function is in milliseconds so we convert to cm per millisecond*/
 
-    double v_max = speed/1000.0;
-    double  dr = 1.0/precision; /* amount of steps per centimeter */
-    double mindelay = (dr/v_max);  /* amount of ms to wait between 2 steps */
-    dx = stop.x - start.x;
-    dy = stop.y - start.y;
-    dz = stop.z - start.z;
+    dx = stop.x - start.x; dy = stop.y - start.y; dz = stop.z - start.z;
     r = sqrt(dx*dx+dy*dy+dz*dz); /* total path length in centimeters */
-    dalpha = stop.alpha - start.alpha;
-    dbeta  = stop.beta - start.beta;
-    dgamma = stop.gamma - start.gamma;
-    r_a = abs((dalpha + dbeta + dgamma)/pi); /* a very rough estimate for the path traveled by the wrist*/
+    dalpha = stop.alpha - start.alpha; dbeta  = stop.beta - start.beta; dgamma = stop.gamma - start.gamma;
+    r_a = abs((dalpha + dbeta + dgamma)/(2*pi)); /* a verry rough estimate for the path traveled by the wrist*/
     dgrip = stop.grip - start.grip;
-    steps = r*precision;
+    steps = floor(r*precision); /* steps has to be a whole number resulting in dr >= 1/precision*/
+    dr = r/steps;
+    ramp_steps = ramp*precision;
+    ramp_distance = ramp_steps*dr; /* ramp_distance >= ramp now */
+    double min_delay = dr/v_max;
     if(r == 0){
         steps = r_a*200;
+        wait = 40;
     }
+    /* notice j=1, we should already be at start because of the previous step, otherwise... chaos anyway*/
+    for(j=1; j<=steps; j++){
 
-    /* v = a*r²+b for current_r<=ramp, v = -c*r²+d for current_r>= r - ramp*/
-    /* why not just linear? */
-    double a = (1.0/(ramp*ramp) )*( (dr/mindelay)-(dr/(increase*mindelay)) );
-    double b = dr/(increase*mindelay);
-    double c = ( (dr/mindelay) - (dr/(increase*mindelay)) ) / (2*r*ramp - ramp*ramp);
-    double d = (dr/(increase*mindelay)) + c*r*r;
+        current_r = dr*j;
+        x = start.x + ((j/steps)*dx);
+        y = start.y + ((j/steps)*dy);
+        z = start.z + ((j/steps)*dz);
+        alpha = start.alpha + ((j/steps)*dalpha);
+        beta = start.beta + ((j/steps)*dbeta);
+        gamma = start.gamma + ((j/steps)*dgamma);
+        ik.eulerMatrix(alpha,beta,gamma,t);
+        ik.inverseKinematics(x,y,z,t,angles,flip);
 
-    for(j = 0; j <= steps; j++){
-    current_r = dr*j;
-    x = start.x + ((j/steps)*dx);
-    y = start.y + ((j/steps)*dy);
-    z = start.z + ((j/steps)*dz);
-    alpha = start.alpha + ((j/steps)*dalpha);
-    beta = start.beta + ((j/steps)*dbeta);
-    gamma = start.gamma + ((j/steps)*dgamma);
-    ik.eulerMatrix(alpha,beta,gamma,t);
-    ik.inverseKinematics(x,y,z,t,angles,flip);
-    commandArduino(angles,start.grip);
-    /* mess due to accelleration */
-        if(r<=2*ramp){ /* path too short, v = 0.5*v_max everywhere */
-            msleep(2*mindelay);
+
+        if(r<2*ramp){
+            msleep(wait); /* path too short, half max speed without acceleration*/
         }
-        else if(r>2*ramp){  /* v = a*current_r² + b*/
-            if (current_r <= ramp){
-                wait = dr / ( a*current_r*current_r + b);  /* v = dr/delay so delay = dr/v */
-                msleep(wait);
-            }
-        else if(current_r>ramp && current_r<r-ramp){
+
+        else if(current_r <= ramp_distance + 0.01 ){ /* 0.01 in case dr gets rounded down a bit somehow*/
+            dv = j*(v_max/ramp_steps);
+            wait = dr/dv;    /* dt = dr/dv, dv=j*(speed/ramp_steps)*/
             msleep(wait);
         }
-        else if(current_r >= r-ramp){ /*v = -c*current_r² + d */
-            wait = dr/( -c*current_r*current_r + d);
+        else if(current_r > ramp_distance && current_r <= r - ramp_distance + 0.01){
+            msleep(min_delay);
+        }
+        else if(current_r > r - ramp_distance + 0.01){
+            dv = v_max - ((j - (steps-ramp_steps)-1) *(v_max/ramp_steps));
+            wait = dr/dv;
             msleep(wait);
         }
-        }
-/* end of mess */
+
+        commandArduino(angles,start.grip);
     }
     if(abs(dgrip) > 0){
         for (j=0;j<20;j++){
@@ -167,75 +162,6 @@ void line(struct Pos start, struct Pos stop, double speed, int flip){ /* speed i
     }
 }
 
-void lineTest(struct Pos start, struct Pos stop, double speed){
-    double j;
-    double dx,dy,dz,r,x,y,z;
-    double wait,current_r;
-    double dalpha,dbeta,dgamma;
-    double alpha,beta,gamma;
-    double temp;
-    vector<vector<double >> anglesArray;
-    double r_a; /* sum of the delta angles*/
-    int dgrip;
-    int steps;
-
-    double v_max = speed/1000.0;
-    double  dr = 1.0/precision; /* amount of steps per centimeter */
-    double mindelay = (dr/v_max);  /* amount of ms to wait between 2 steps */
-    dx = stop.x - start.x;
-    dy = stop.y - start.y;
-    dz = stop.z - start.z;
-    r = sqrt(dx*dx+dy*dy+dz*dz); /* total path length in centimeters */
-    dalpha = stop.alpha - start.alpha;
-    dbeta  = stop.beta - start.beta;
-    dgamma = stop.gamma - start.gamma;
-    //r_a = 12*(dalpha + dbeta + dgamma)/(2*pi); /* a verry rough estimate for the path traveled by the wrist*/
-    dgrip = stop.grip - start.grip;
-    steps = r*precision;
-
-    anglesArray.resize(steps);
-    for (int i = 0; i < steps; ++i)
-        anglesArray[i].resize(7);
-
-    double a = (1.0/(ramp*ramp) )*( (dr/mindelay)-(dr/(increase*mindelay)) );
-    double b = dr/(increase*mindelay);
-    double c = ( (dr/mindelay) - (dr/(increase*mindelay)) ) / (2*r*ramp - ramp*ramp);
-    double d = (dr/(increase*mindelay)) + c*r*r;
-
-    for(j=0; j<steps; j++){
-        x = start.x + ((j/steps)*dx);
-        y = start.y + ((j/steps)*dy);
-        z = start.z + ((j/steps)*dz);
-        alpha = start.alpha + ((j/steps)*dalpha);
-        beta = start.beta + ((j/steps)*dbeta);
-        gamma = start.gamma + ((j/steps)*dgamma);
-        ik.eulerMatrix(alpha,beta,gamma,t);
-        ik.inverseKinematicsTest(x,y,z,t,anglesArray[j]);
-    }
-    for(j=0; j<steps; j++){
-        commandArduinoTest(anglesArray[j],start.grip);
-            /* mess due to accelleration */
-        if(r<=2*ramp){ /* path too short, v = 0.5*v_max everywhere */
-            msleep(2*mindelay);
-        }
-        else if(r>2*ramp){  /* v = a*current_r² + b*/
-            if (current_r <= ramp){
-                wait = dr / ( a*current_r*current_r + b);  /* v = dr/delay so delay = dr/v */
-                msleep(wait);
-            }
-        else if(current_r>ramp && current_r<r-ramp){
-            msleep(wait);
-        }
-        else if(current_r >= r-ramp){ /*v = -c*current_r² + d */
-            wait = dr/( -c*current_r*current_r + d);
-            msleep(wait);
-        }
-        }
-/* end of mess */
-    }
-
-}
-
 void setPos(struct Pos* pos, double x, double y, double z, double alpha, double beta, double gamma,int grip){
     pos->x=x; pos->y=y; pos->z=z;
     pos->alpha=alpha; pos->beta=beta; pos->gamma=gamma;
@@ -243,7 +169,7 @@ void setPos(struct Pos* pos, double x, double y, double z, double alpha, double 
 }
 
 int wait(){
-    printf("press any key to continue or esc to quit \n");
+    cout << "press any key to continue or esc to quit" << endl;
     if(getch() == 27)
         return 0;
     else
@@ -270,18 +196,78 @@ double fixtheta(double x,double theta){
         return theta;
 }
 
-void returnBlock(vector<double>& relPos1, Mat& relativeMatrix, double speed, int flip, struct Pos dump){
+void showOff(double speed){
+    int flip = 0;
+    int j;
+    struct Pos start, leftlow, rightlow, leftup, rightup;
+    struct Pos start1,start2,start3;
+    setPos(&start,0,25,20,0,0,0,10);
+    setPos(&leftlow,-20,30,6,0,0,0,10);
+    setPos(&rightlow,20,30,6,0,0,0,10);
+    setPos(&leftup,-20,30,30,0,0,0,10);
+    setPos(&rightup,20,30,30,0,0,0,10);
+    line(start,leftlow,speed,flip);
+    line(leftlow,leftup,speed,flip);
+    flip = 1;
+    setArmPos(leftup,flip);
+    msleep(500);
+    line(leftup,rightup,speed,flip);
+    flip = 0;
+    setArmPos(rightup,flip);
+    msleep(500);
+    line(rightup,rightlow,speed,flip);
+    line(rightlow,leftlow,speed,flip);
+    line(leftlow,start,speed,flip);
+
+    setPos(&start1,0,25,20,pi/2,0,0,10);
+    setPos(&start2,0,25,20,-pi/2,0,0,10);
+    setPos(&start3,0,25,20,pi/2,0,0,10);
+    line(start,start1,speed,flip);
+    line(start1,start2,speed,flip);
+    line(start2,start3,speed,flip);
+    double dummy = 70;
+
+    /* I don't have a function to draw circles with the wrist, don't think I need one either tbh.*/
+    for (j=0; j<=dummy; j++){
+       ik.eulerMatrix(cos((j/dummy)*pi)*pi/2,0,sin((j/dummy)*pi)*pi/2,t);
+       ik.inverseKinematics(0,25,20,t,angles,flip);
+       commandArduino(angles,10);
+       msleep(50);
+   }
+
+   for (j=0; j<=dummy; j++){
+       ik.eulerMatrix(-cos((j/dummy)*pi)*pi/2,0,-sin((j/dummy)*pi)*pi/2,t);
+       ik.inverseKinematics(0,25,20,t,angles,flip);
+       commandArduino(angles,10);
+       msleep(50);
+    }
+    line(start3,start,speed,flip);
+
+
+
+
+}
+/* picks up the block found by "findVecsCharuco" and puts it at dumps location*/
+int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos drop,int counter){
+    unique_lock<mutex> locker(grabmu,defer_lock);
+    if(!locker.try_lock()){
+        cout << "already in use!" << endl;
+        msleep(100);
+        return 0;
+    }
+    double theta;
     double pitchdown = 45*degtorad;
     int grip = 100;
-    double x,y,z,theta,temptheta;
-    x = 100*relPos1[0] -0.5;
-    y = 100*relPos1[1] + 11;
-    z = 1;
-    temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+    if(y < 12){
+        cout << "ain't gonna wreck myself!!!" << endl;
+        return 0;
+    }
     theta = fixtheta(x,temptheta);
     cout << "x=" << x << "  y=" << y << "   theta=" <<theta << endl;
-    struct Pos tempopen, tempclosed, obj, objup, objuprotated, checkPos;
+    struct Pos  obj, objup, objuprotated, dump,dumpup;
 
+    setPos(&dump, drop.x,drop.y,drop.z + 2.8*counter,drop.alpha,drop.beta,drop.gamma,100);
+    setPos(&dumpup, drop.x,drop.y,drop.z + 2.8*(counter+1),drop.alpha,drop.beta,drop.gamma,0);
     setPos(&objup,x,y,z+10,0,0,-pitchdown,grip);
     setPos(&objuprotated,x,y,z+10,theta,0,-pitchdown,grip);
 
@@ -292,7 +278,7 @@ void returnBlock(vector<double>& relPos1, Mat& relativeMatrix, double speed, int
     setPos(&obj,x,y,z,theta,0,-pitchdown,grip);
     line(objup,objuprotated,speed,flip);
     msleep(100);
-    line(objuprotated,obj,speed,flip);
+    line(objuprotated,obj,speed/2,flip);
     msleep(100);
 
     setPos(&objup,x,y,z+10,0,0,-pitchdown,grip);
@@ -301,27 +287,24 @@ void returnBlock(vector<double>& relPos1, Mat& relativeMatrix, double speed, int
     msleep(100);
     line(objuprotated,objup,speed,flip);
     msleep(100);
-    line(objup,dump,speed,flip);
-
-}
-
-void setArmPos(struct Pos Pos, int flip){
-    double x,y,z,a,b,g;
-    x = Pos.x; y = Pos.y;  z = Pos.z;
-    a = Pos.alpha; b = Pos.beta; g = Pos.gamma;
-    int grip = Pos.grip;
-
-    ik.eulerMatrix(a,b,g,t);
-    ik.inverseKinematics(x,y,z,t,angles,flip);
-    commandArduino(angles,grip);
+    line(objup,dumpup,speed,flip);
+    line(dumpup,dump,speed,flip);
+    setPos(&dumpup, drop.x,drop.y,drop.z + 2.8*(counter+1),drop.alpha,drop.beta,drop.gamma,100);
+    line(dump,dumpup,speed,flip);
+    locker.unlock();
+    return 1;
 }
 
 int main(void)
 {
-
-    double speed = 30; /* in cm/s */
+    double x,y,z,temptheta;
+    double speed = 25; /* in cm/s */
     int flip = 1; /* implement this in a better way later plz...*/
+    int toFind = 43;
+    int looptieloop = 1;
     vector<double> relPos1(3);
+    bool getVecs = false;
+
     Mat cameraMatrix = Mat::eye(3,3, CV_64F);
     Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
     Mat relativeMatrix = Mat::zeros(3,3, CV_64F);
@@ -330,16 +313,37 @@ int main(void)
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
 
-    struct Pos dump;
-    setPos(&dump, -15,25,1,0,0,-45*degtorad,100);
-    setArmPos(dump, flip);
+//    struct Pos start;
+//    setPos(&start,0,25,20,0,0,0,10);
+//    setArmPos(start,0);
+//    wait();
+//    showOff(speed);
 
-    int looptieloop = wait();
-    while(looptieloop == 1){
+    /* go to starting position */
+    struct Pos drop;
+    setPos(&drop, -20,25,0.5,0,0,-45*degtorad,100);
+    setArmPos(drop, flip);
 
-        CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos1,relativeMatrix,42);
-        returnBlock(relPos1,relativeMatrix,speed, flip, dump);
-        looptieloop = wait();
+    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
+    t.detach();
+    looptieloop = wait();
+    int counter = 0;
+    getVecs = true;
+    while(looptieloop){
+        unique_lock<mutex> locker(mu);
+        cond.wait(locker, [&]{return !getVecs;});// I dunno how this lambda thing is doing it, but it works...
+        x = 100*relPos1[0] -0.5; y = 100*relPos1[1] + 10.5; z = 0.5;
+        temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+        locker.unlock();
+        getVecs = true;
+        toFind++;
+        returnBlock(x,y,z,temptheta,speed,flip,drop,counter);
+        counter++;
+        //looptieloop = wait();
+        if(toFind>45){
+            looptieloop = 0;
+            break;
+        }
     }
-
+    return 1;
 }
