@@ -242,10 +242,6 @@ void showOff(double speed){
        msleep(50);
     }
     line(start3,start,speed,flip);
-
-
-
-
 }
 /* picks up the block found by "findVecsCharuco" and puts it at dumps location*/
 int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos drop,int counter){

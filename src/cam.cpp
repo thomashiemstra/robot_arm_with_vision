@@ -26,7 +26,7 @@ cam::cam(uint8_t cameraNum, int framesPerSecond){
     camera = cameraNum;
     fps = framesPerSecond;
 }
-
+/* find where the marker is located in the arrays */
 int cam::findIndex(vector<int>& vec, int val){
     int res;
     uint16_t length = vec.size();
@@ -36,7 +36,7 @@ int cam::findIndex(vector<int>& vec, int val){
         }
     return res;
 }
-
+/* obsolete function, might be useful for salvage */
 void cam::findRotMatrix(int basePos, int Pos, vector<Vec3d>& translationVectors, vector<Vec3d>& rotationVectors, Mat&  relativeRotMatrix){
     int i,j,k;
     Mat baseRotMatrix = Mat::zeros(3,3, CV_64F);
@@ -65,7 +65,7 @@ void cam::findRotMatrix(int basePos, int Pos, vector<Vec3d>& translationVectors,
     }
 
 }
-
+/* find the orientation with respect to the world coordinate frame (base frame) */
 void cam::findRotMatrixCharuco(Vec3d& baseRotation, Vec3d& posRotation, Mat&  relativeRotMatrix){
     int i,j,k;
     Mat baseRotMatrix = Mat::zeros(3,3, CV_64F);
@@ -94,7 +94,7 @@ void cam::findRotMatrixCharuco(Vec3d& baseRotation, Vec3d& posRotation, Mat&  re
     }
 
 }
-
+/* obsolete function, might be useful for salvage */
 void cam::findRelativeVector(int basePos, int Pos, vector<Vec3d>& translationVectors, vector<Vec3d>& rotationVectors, vector<double>& posRes){
     int i,j;
     vector<double> R(3);
@@ -115,7 +115,7 @@ void cam::findRelativeVector(int basePos, int Pos, vector<Vec3d>& translationVec
         }
     }
 }
-
+/* find the coordinates of the marker expressed in the world coordinate frame (base frame) */
 void cam::findRelativeVectorCharuco(Vec3d& baseRotation, Vec3d& baseTranslation, Vec3d& posTranslation,  vector<double>& posRes){
     int i,j;
     vector<double> R(3);
@@ -125,12 +125,9 @@ void cam::findRelativeVectorCharuco(Vec3d& baseRotation, Vec3d& baseTranslation,
     /* R is the vector from object to base in expressed in the camera frame*/
     for(i = 0; i < 3; i++)
         R[i] = posTranslation[i] -  baseTranslation[i];
-    //cout << "\r" << "Rx=" << 100*R[0] << " Ry=" << 100*R[1] << " Rz=" << 100*R[2] << "                   " << flush;
-    //cout << "\r" << "POSRx=" << 100*posTranslation[0] << " Ry=" << 100*posTranslation[1] << " Rz=" << 100*posTranslation[2] << "                   " << flush;
-    //cout << "\r" << "BASERx=" << 100*baseTranslation[0] << " Ry=" << 100*baseTranslation[1] << " Rz=" << 100*baseTranslation[2] << "                   " << flush;
+
     /* R is still expressed with respect to the camera frame, to fix this we must multiply R by the transpose of the rotation matrix between the world and camera frame */
     Rodrigues(baseRotation,baseRotMatrix);
-
     for(i = 0; i < 3; i++){
         posRes[i] = 0;
         for(j = 0; j < 3; j++){
@@ -138,10 +135,7 @@ void cam::findRelativeVectorCharuco(Vec3d& baseRotation, Vec3d& baseTranslation,
         }
     }
 }
-
-
-
-/* this function can be used to get the camera into focus*/
+/* constantly outputs the camera feed and calculate the position of toFindMarker when asked */
 int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos, Mat& relativeRotMatrix, int& toFindMarker,bool &getVecs, int& condition){
     Mat frame;
     Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_4X4_50);
@@ -215,7 +209,7 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
     }
     return 1;
 }
-
+/* load the calibration matrix */
 bool cam::getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficients){
     ifstream inStream(name);
     if(inStream){
@@ -244,7 +238,7 @@ bool cam::getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficie
     }
     return false;
 }
-
+/* obsolete function, might be useful for salvage */
 int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos, Mat& relativeRotMatrix, int toFindMarker){
     Mat frame;
     double new_y,old_y = 0;
