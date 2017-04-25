@@ -33,6 +33,7 @@ class cam
         bool getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficients);
         int startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos, Mat& relativeRotMatrix, int& toFindMarker,bool &getVecs, int& condition);
         bool calibrateRoutine(int cameraNumber, Mat cameraMatrix, Mat distanceCoefficients);
+        int copyMovement(const Mat& cameraMatrix, const Mat& distanceCoefficients, vector<double>& relPos, Mat& relativeRotMatrix, bool &getVecs, int& condition);
         int findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos1, Mat& relativeRotMatrix, int toFindMarker);
     private:
         void findRelativeVector(int basePos, int Pos, vector<Vec3d>& translationVectors, vector<Vec3d>& rotationVectors, vector<double>& posRes);

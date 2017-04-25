@@ -295,11 +295,15 @@ int main(void)
 {
     double x,y,z,temptheta;
     double speed = 25; /* in cm/s */
-    int flip = 1; /* implement this in a better way later plz...*/
+    int flip = 0; /* implement this in a better way later plz...*/
     int toFind = 43;
     int looptieloop = 1;
     vector<double> relPos1(3);
     bool getVecs = false;
+
+    double w[3][3]= {{0,1,0},    //the target rotation matrix R
+                 {0,0,1},
+                 {1,0,0}};
 
     Mat cameraMatrix = Mat::eye(3,3, CV_64F);
     Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
@@ -317,10 +321,11 @@ int main(void)
 
     /* go to starting position */
     struct Pos drop;
-    setPos(&drop, -20,25,0.5,0,0,-45*degtorad,100);
+    setPos(&drop, -20,25,10,0,0,0,10);
     setArmPos(drop, flip);
 
-    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
+    //thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
+    thread t(&cam::copyMovement, &CAM, ref(cameraMatrix), ref(distanceCoefficients),ref(relPos1) ,ref(relativeMatrix), ref(getVecs), ref(looptieloop) );
     t.detach();
     looptieloop = wait();
     int counter = 0;
@@ -328,18 +333,29 @@ int main(void)
     while(looptieloop){
         unique_lock<mutex> locker(mu);
         cond.wait(locker, [&]{return !getVecs;});// I dunno how this lambda thing is doing it, but it works...
-        x = 100*relPos1[0] -0.5; y = 100*relPos1[1] + 10.5; z = 0.5;
-        temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+        //x = 100*relPos1[0] -0.5; y = 100*relPos1[1] + 10.5; z = 0.5;
+        //temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+
+        x = 100*relPos1[0] - 2*relativeMatrix.at<double>(0,1); y = 100*relPos1[1] + 10 - 2*relativeMatrix.at<double>(1,1); z = 100*relPos1[2] + 1 - 2*relativeMatrix.at<double>(2,1);
+        cout << "\r" << " x=" << x << " y=" << y << "  z" << z <<"                   " << flush;
+        /* can this be done with a for loop? I don't care anymore*/
+        w[0][0] = relativeMatrix.at<double>(0,2);   w[0][1] = relativeMatrix.at<double>(0,0);   w[0][2] = relativeMatrix.at<double>(0,1);
+        w[1][0] = relativeMatrix.at<double>(1,2);   w[1][1] = relativeMatrix.at<double>(1,0);   w[1][2] = relativeMatrix.at<double>(1,1);
+        w[2][0] = relativeMatrix.at<double>(2,2);   w[2][1] = relativeMatrix.at<double>(2,0);   w[2][2] = relativeMatrix.at<double>(2,1);
+        //cout << "\r" << " x=" << relativeMatrix.at<double>(0,1) << " y=" << relativeMatrix.at<double>(1,1) << "  z=" << relativeMatrix.at<double>(2,1) <<"                   " << flush;
+        ik.inverseKinematics(x,y,z,w,angles,flip);
+        commandArduino(angles,10);
         locker.unlock();
         getVecs = true;
-        toFind++;
-        returnBlock(x,y,z,temptheta,speed,flip,drop,counter);
-        counter++;
-        //looptieloop = wait();
-        if(toFind>45){
-            looptieloop = 0;
-            break;
-        }
+        msleep(100);
+//        toFind++;
+//        returnBlock(x,y,z,temptheta,speed,flip,drop,counter);
+//        counter++;
+//        //looptieloop = wait();
+//        if(toFind>45){
+//            looptieloop = 0;
+//            break;
+//        }
     }
     return 1;
 }

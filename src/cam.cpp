@@ -209,6 +209,92 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
     }
     return 1;
 }
+
+int cam::copyMovement(const Mat& cameraMatrix, const Mat& distanceCoefficients, vector<double>& relPos, Mat& relativeRotMatrix, bool &getVecs, int& condition){
+    Mat frame;
+    Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_4X4_50);
+    Ptr<aruco::CharucoBoard> charucoboard = aruco::CharucoBoard::create(5, 3, 0.0265f, 0.0198f, markerDictionary);
+    Ptr<aruco::Board> board = charucoboard.staticCast<aruco::Board>();
+    Ptr<aruco::GridBoard> gridboard =
+    aruco::GridBoard::create(2, 2, 0.0265f, 0.0053f, markerDictionary, 10);
+    Ptr<aruco::Board> boardGrid = gridboard.staticCast<aruco::Board>();
+    int counter = 0;
+    double new_y,old_y;
+    double tempx,tempy;
+    Vec3d rvec, tvec;
+    bool validPose = false;
+
+    VideoCapture vid(0);
+
+    if(!vid.isOpened()){
+        return -1;
+    }
+
+    while(!validPose){
+    if(!vid.read(frame))
+        break;
+    vector< vector< Point2f > > markerCorners, rejectedMarkers;
+    vector<int> markerIds, charucoIds;
+    vector< Point2f > charucoCorners;
+
+    aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
+    if(markerIds.size()>0)
+        aruco::interpolateCornersCharuco(markerCorners, markerIds, frame, charucoboard, charucoCorners, charucoIds, cameraMatrix, distanceCoefficients);
+    validPose = aruco::estimatePoseCharucoBoard(charucoCorners, charucoIds, charucoboard, cameraMatrix, distanceCoefficients, rvec, tvec);
+    waitKey(1000/fps);
+    }
+    cout << "ready!" << endl;
+    namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
+    while(true){
+        auto begin = std::chrono::high_resolution_clock::now();
+        if(!vid.read(frame))
+            break;
+        Vec3d rvecB, tvecB;
+        vector< Point2f > charucoCorners;
+        vector< vector< Point2f > > markerCorners, rejectedMarkers;
+        vector<int> markerIds, charucoIds;
+        /* detect everything*/
+        aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
+        //aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimension, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
+        int markersOfBoardDetected = 0;
+        if(markerIds.size() > 0)
+            markersOfBoardDetected =
+                aruco::estimatePoseBoard(markerCorners, markerIds, boardGrid, cameraMatrix, distanceCoefficients, rvecB, tvecB);
+
+        aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rvec, tvec, 0.12f);
+        if(markersOfBoardDetected > 0)
+            aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rvecB, tvecB, 0.12f);
+
+
+        /* find x,y and theta(rotation around the z-axis)*/
+        if(markersOfBoardDetected > 0 && getVecs){
+            unique_lock<mutex> locker(mu);
+            findRelativeVectorCharuco(rvec, tvec, tvecB, relPos);
+            findRotMatrixCharuco(rvec, rvecB, relativeRotMatrix);
+            aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rvecB, tvecB, 0.08f);
+            //cout << "\r" << " dx=" << 100*relPos1[0] << " dy=" << 100*relPos1[1] << "  dz=" << 100*relPos1[2] <<"                   " << flush;
+            getVecs = false;
+            counter = 0;
+            locker.unlock();
+            cond.notify_one();
+
+        }
+        imshow("Webcam", frame);
+        /*make sure we wait exactly 1000/fps milliseconds */
+        if(waitKey(1) == 27); //wait for 'esc' key press. If 'esc' key is pressed, break loop
+        auto temp = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> fp_ms = temp - begin;
+        double test = fp_ms.count(); /* time elapsed so far*/
+        int wait = (int)((1000.0/fps) - test); /* true fps time*/
+        if(wait<0)
+            wait = 1;
+        std::this_thread::sleep_for(std::chrono::milliseconds(wait));
+        if(condition == 0) break;
+    }
+    return 1;
+}
+
+
 /* load the calibration matrix */
 bool cam::getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficients){
     ifstream inStream(name);
