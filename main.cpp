@@ -335,19 +335,19 @@ int main(void)
         cond.wait(locker, [&]{return !getVecs;});// I dunno how this lambda thing is doing it, but it works...
         //x = 100*relPos1[0] -0.5; y = 100*relPos1[1] + 10.5; z = 0.5;
         //temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+            x = 100*relPos1[0] - 2*relativeMatrix.at<double>(0,1) - 28 ; y = 100*relPos1[1] + 30 - 2*relativeMatrix.at<double>(1,1); z = 100*relPos1[2] + 2 - 2*relativeMatrix.at<double>(2,1);
+            cout << "\r" << " x=" << x << " y=" << y << "  z" << z <<"                   " << flush;
+            /* can this be done with a for loop? I don't care anymore...*/
+            w[0][0] = relativeMatrix.at<double>(0,2);   w[0][1] = relativeMatrix.at<double>(0,0);   w[0][2] = relativeMatrix.at<double>(0,1);
+            w[1][0] = relativeMatrix.at<double>(1,2);   w[1][1] = relativeMatrix.at<double>(1,0);   w[1][2] = relativeMatrix.at<double>(1,1);
+            w[2][0] = relativeMatrix.at<double>(2,2);   w[2][1] = relativeMatrix.at<double>(2,0);   w[2][2] = relativeMatrix.at<double>(2,1);
+            //cout << "\r" << " x=" << relativeMatrix.at<double>(0,1) << " y=" << relativeMatrix.at<double>(1,1) << "  z=" << relativeMatrix.at<double>(2,1) <<"                   " << flush;
+            ik.inverseKinematics(x,y,z,w,angles,flip);
+            commandArduino(angles,10);
+            locker.unlock();
+            getVecs = true;
+            msleep(20);
 
-        x = 100*relPos1[0] - 2*relativeMatrix.at<double>(0,1); y = 100*relPos1[1] + 10 - 2*relativeMatrix.at<double>(1,1); z = 100*relPos1[2] + 1 - 2*relativeMatrix.at<double>(2,1);
-        cout << "\r" << " x=" << x << " y=" << y << "  z" << z <<"                   " << flush;
-        /* can this be done with a for loop? I don't care anymore*/
-        w[0][0] = relativeMatrix.at<double>(0,2);   w[0][1] = relativeMatrix.at<double>(0,0);   w[0][2] = relativeMatrix.at<double>(0,1);
-        w[1][0] = relativeMatrix.at<double>(1,2);   w[1][1] = relativeMatrix.at<double>(1,0);   w[1][2] = relativeMatrix.at<double>(1,1);
-        w[2][0] = relativeMatrix.at<double>(2,2);   w[2][1] = relativeMatrix.at<double>(2,0);   w[2][2] = relativeMatrix.at<double>(2,1);
-        //cout << "\r" << " x=" << relativeMatrix.at<double>(0,1) << " y=" << relativeMatrix.at<double>(1,1) << "  z=" << relativeMatrix.at<double>(2,1) <<"                   " << flush;
-        ik.inverseKinematics(x,y,z,w,angles,flip);
-        commandArduino(angles,10);
-        locker.unlock();
-        getVecs = true;
-        msleep(100);
 //        toFind++;
 //        returnBlock(x,y,z,temptheta,speed,flip,drop,counter);
 //        counter++;
