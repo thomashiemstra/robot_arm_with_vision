@@ -206,6 +206,9 @@ void showOff(double speed){
     setPos(&rightlow,20,30,6,0,0,0,10);
     setPos(&leftup,-20,30,30,0,0,0,10);
     setPos(&rightup,20,30,30,0,0,0,10);
+
+    setArmPos(start,10);
+    wait();
     line(start,leftlow,speed,flip);
     line(leftlow,leftup,speed,flip);
     flip = 1;
@@ -291,71 +294,87 @@ int returnBlock(double x, double y, double z, double temptheta, double speed, in
     return 1;
 }
 
-int main(void)
-{
-    double x,y,z,temptheta;
-    double speed = 25; /* in cm/s */
-    int flip = 0; /* implement this in a better way later plz...*/
-    int toFind = 43;
-    int looptieloop = 1;
+void monkeySeeMonkeyDo(){
+    double x,y,z;
     vector<double> relPos1(3);
     bool getVecs = false;
-
-    double w[3][3]= {{0,1,0},    //the target rotation matrix R
-                 {0,0,1},
-                 {1,0,0}};
-
+    int looptieloop = 1;
+    int flip = 0;
+    double w[3][3]={{0,1,0},    //the target rotation matrix R
+                    {0,0,1},
+                    {1,0,0}};
     Mat cameraMatrix = Mat::eye(3,3, CV_64F);
     Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
     Mat relativeMatrix = Mat::zeros(3,3, CV_64F);
     CAM.getMatrixFromFile("CameraCalibration", cameraMatrix, distanceCoefficients);
-    /* connect to arduino*/
-    arduino = new Serial(portName);
-    cout << "is connected: " << arduino->IsConnected() << std::endl;
 
-//    struct Pos start;
-//    setPos(&start,0,25,20,0,0,0,10);
-//    setArmPos(start,0);
-//    wait();
-//    showOff(speed);
-
-    /* go to starting position */
-    struct Pos drop;
-    setPos(&drop, -20,25,10,0,0,0,10);
-    setArmPos(drop, flip);
-
-    //thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
     thread t(&cam::copyMovement, &CAM, ref(cameraMatrix), ref(distanceCoefficients),ref(relPos1) ,ref(relativeMatrix), ref(getVecs), ref(looptieloop) );
     t.detach();
     looptieloop = wait();
-    int counter = 0;
     getVecs = true;
-    while(looptieloop){
+    while(true){
         unique_lock<mutex> locker(mu);
-        cond.wait(locker, [&]{return !getVecs;});// I dunno how this lambda thing is doing it, but it works...
-        //x = 100*relPos1[0] -0.5; y = 100*relPos1[1] + 10.5; z = 0.5;
-        //temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+        cond.wait(locker, [&]{return !getVecs;});
             x = 100*relPos1[0] - 2*relativeMatrix.at<double>(0,1) - 28 ; y = 100*relPos1[1] + 30 - 2*relativeMatrix.at<double>(1,1); z = 100*relPos1[2] + 2 - 2*relativeMatrix.at<double>(2,1);
             cout << "\r" << " x=" << x << " y=" << y << "  z" << z <<"                   " << flush;
             /* can this be done with a for loop? I don't care anymore...*/
             w[0][0] = relativeMatrix.at<double>(0,2);   w[0][1] = relativeMatrix.at<double>(0,0);   w[0][2] = relativeMatrix.at<double>(0,1);
             w[1][0] = relativeMatrix.at<double>(1,2);   w[1][1] = relativeMatrix.at<double>(1,0);   w[1][2] = relativeMatrix.at<double>(1,1);
             w[2][0] = relativeMatrix.at<double>(2,2);   w[2][1] = relativeMatrix.at<double>(2,0);   w[2][2] = relativeMatrix.at<double>(2,1);
-            //cout << "\r" << " x=" << relativeMatrix.at<double>(0,1) << " y=" << relativeMatrix.at<double>(1,1) << "  z=" << relativeMatrix.at<double>(2,1) <<"                   " << flush;
             ik.inverseKinematics(x,y,z,w,angles,flip);
             commandArduino(angles,10);
             locker.unlock();
             getVecs = true;
             msleep(20);
-
-//        toFind++;
-//        returnBlock(x,y,z,temptheta,speed,flip,drop,counter);
-//        counter++;
-//        //looptieloop = wait();
-//        if(toFind>45){
-//            looptieloop = 0;
-//            break;
-//        }
     }
+}
+
+void stacking(double speed, int flip){
+    double x,y,z,temptheta;
+    int toFind = 43;
+    int looptieloop = 1;
+    vector<double> relPos1(3);
+    bool getVecs = false;
+    Mat cameraMatrix = Mat::eye(3,3, CV_64F);
+    Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
+    Mat relativeMatrix = Mat::zeros(3,3, CV_64F);
+    CAM.getMatrixFromFile("CameraCalibration", cameraMatrix, distanceCoefficients);
+
+    struct Pos drop;
+    setPos(&drop, -20,25,0.5,0,0,0,10);
+    setArmPos(drop, flip);
+
+    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
+    t.detach();
+    looptieloop = wait();
+    int counter = 0;
+    getVecs = true;
+    while(looptieloop){
+        unique_lock<mutex> locker(mu);
+        cond.wait(locker, [&]{return !getVecs;});
+        x = 100*relPos1[0] -0.5; y = 100*relPos1[1] + 10.5; z = 0.5;
+        temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+        toFind++;
+        returnBlock(x,y,z,temptheta,speed,flip,drop,counter);
+        counter++;
+        if(toFind>45){
+            looptieloop = 0;
+            break;
+        }
+    }
+}
+
+int main(void)
+{
+    double speed = 25;
+    int flip = 1;
+    /* connect to arduino*/
+    arduino = new Serial(portName);
+    cout << "is connected: " << arduino->IsConnected() << std::endl;
+
+    //showOff(speed);
+    monkeySeeMonkeyDo();
+    //stacking(speed,flip);
+
     return 1;
 }

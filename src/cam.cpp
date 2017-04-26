@@ -149,6 +149,8 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
     if(!vid.isOpened()){
         return -1;
     }
+    //vid.set(CV_CAP_PROP_FRAME_WIDTH,1280);
+    //vid.set(CV_CAP_PROP_FRAME_HEIGHT,720);
     namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
     while(true){
         auto begin = std::chrono::high_resolution_clock::now();
@@ -228,6 +230,7 @@ int cam::copyMovement(const Mat& cameraMatrix, const Mat& distanceCoefficients, 
     if(!vid.isOpened()){
         return -1;
     }
+
     cout << "ready!" << endl;
     namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
     while(true){
