@@ -306,7 +306,7 @@ void monkeySeeMonkeyDo(){
     Mat cameraMatrix = Mat::eye(3,3, CV_64F);
     Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
     Mat relativeMatrix = Mat::zeros(3,3, CV_64F);
-    CAM.getMatrixFromFile("CameraCalibration", cameraMatrix, distanceCoefficients);
+    CAM.getMatrixFromFile("CameraCalibration720.dat", cameraMatrix, distanceCoefficients);
 
     thread t(&cam::copyMovement, &CAM, ref(cameraMatrix), ref(distanceCoefficients),ref(relPos1) ,ref(relativeMatrix), ref(getVecs), ref(looptieloop) );
     t.detach();
@@ -315,7 +315,7 @@ void monkeySeeMonkeyDo(){
     while(true){
         unique_lock<mutex> locker(mu);
         cond.wait(locker, [&]{return !getVecs;});
-            x = 100*relPos1[0] - 2*relativeMatrix.at<double>(0,1) - 28 ; y = 100*relPos1[1] + 30 - 2*relativeMatrix.at<double>(1,1); z = 100*relPos1[2] + 2 - 2*relativeMatrix.at<double>(2,1);
+            x = 100*relPos1[0] - 4*relativeMatrix.at<double>(0,1) - 27 ; y = 100*relPos1[1] + 30 - 4*relativeMatrix.at<double>(1,1); z = 100*relPos1[2] + 5 - 4*relativeMatrix.at<double>(2,1);
             cout << "\r" << " x=" << x << " y=" << y << "  z" << z <<"                   " << flush;
             /* can this be done with a for loop? I don't care anymore...*/
             w[0][0] = relativeMatrix.at<double>(0,2);   w[0][1] = relativeMatrix.at<double>(0,0);   w[0][2] = relativeMatrix.at<double>(0,1);

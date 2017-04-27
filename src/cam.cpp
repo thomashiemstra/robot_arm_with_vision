@@ -149,8 +149,10 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
     if(!vid.isOpened()){
         return -1;
     }
-    //vid.set(CV_CAP_PROP_FRAME_WIDTH,1280);
-    //vid.set(CV_CAP_PROP_FRAME_HEIGHT,720);
+    vid.set(CV_CAP_PROP_FOURCC ,CV_FOURCC('M', 'J', 'P', 'G') ); //MJPG drastically improves frame read times
+    vid.set(CV_CAP_PROP_FRAME_WIDTH,1280);
+    vid.set(CV_CAP_PROP_FRAME_HEIGHT,720);
+
     namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
     while(true){
         auto begin = std::chrono::high_resolution_clock::now();
@@ -230,13 +232,18 @@ int cam::copyMovement(const Mat& cameraMatrix, const Mat& distanceCoefficients, 
     if(!vid.isOpened()){
         return -1;
     }
+    vid.set(CV_CAP_PROP_FOURCC ,CV_FOURCC('M', 'J', 'P', 'G') );//MJPG drastically improves frame read times
+    vid.set(CV_CAP_PROP_FRAME_WIDTH,1280);
+    vid.set(CV_CAP_PROP_FRAME_HEIGHT,720);
 
-    cout << "ready!" << endl;
     namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
     while(true){
         auto begin = std::chrono::high_resolution_clock::now();
         if(!vid.read(frame))
             break;
+        //auto end = std::chrono::high_resolution_clock::now();
+        //std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end-begin).count() << "ms" << std::endl;
+
         Vec3d rvecP, tvecP;
         Vec3d rvec, tvec;
         vector< Point2f > charucoCorners;
@@ -278,6 +285,7 @@ int cam::copyMovement(const Mat& cameraMatrix, const Mat& distanceCoefficients, 
         auto temp = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> fp_ms = temp - begin;
         double test = fp_ms.count(); /* time elapsed so far*/
+        //cout << "\r" << " time=" << test << "ms" <<"                   " << flush;
         int wait = (int)((1000.0/fps) - test); /* true fps time*/
         if(wait<0)
             wait = 1;
@@ -286,8 +294,6 @@ int cam::copyMovement(const Mat& cameraMatrix, const Mat& distanceCoefficients, 
     }
     return 1;
 }
-
-
 /* load the calibration matrix */
 bool cam::getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficients){
     ifstream inStream(name);
@@ -333,6 +339,9 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
     if(!vid.isOpened()){
         return -1;
     }
+    vid.set(CV_CAP_PROP_FOURCC ,CV_FOURCC('M', 'J', 'P', 'G') );//MJPG drastically improves frame read times
+    vid.set(CV_CAP_PROP_FRAME_WIDTH,1280);
+    vid.set(CV_CAP_PROP_FRAME_HEIGHT,720);
     //namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
 
     vid.read(frame); /* reading 1 frame first speeds up the for loop, does it need to start up or something?*/
