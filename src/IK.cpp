@@ -82,12 +82,15 @@ void IK::inverseKinematics(double x,double y,double z,double t[3][3],double angl
     zc = z - d6*t[2][2];
     /* solve inverse kinematics for the first 3 angles found in: */
     /* http://www.hessmer.org/uploads/RobotArm/Inverse%2520Kinematics%2520for%2520Robot%2520Arm.pdf */
-    D = ( pow(xc,2) + pow(yc,2) + pow((zc-d1),2) - pow(a_2,2) - pow(a_3,2) )/(2*a_2*a_3);
     angles[1] = atan2l(yc,xc);
+
+    D = ( pow(xc,2) + pow(yc,2) + pow((zc-d1),2) - pow(a_2,2) - pow(a_3,2) )/(2*a_2*a_3);
     angles[3] = atan2l(-sqrt(1 - pow(D,2)),D );
+
     k1 = a_2+a_3*cosl(angles[3]);
     k2 = a_3*sinl(angles[3]);
     angles[2] = atan2l( (zc-d1), sqrt(pow(xc,2) + pow(yc,2)) ) - atan2l(k2,k1) ;
+
     /* the DH frame is rotated 90 degrees compared to the calculated value see 2.9.7 from the book*/
     angles[3] = angles[3] + pi/2;
 

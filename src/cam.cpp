@@ -175,7 +175,7 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
         if(validPose)
             aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rvec, tvec, 0.12f);
         /* find x,y and theta(rotation around the z-axis)*/
-        if(Pos1 != -1 && getVecs && toFindMarker >= 42){ //blocks in the field start at marker number 42
+        if(Pos1 != -1 && getVecs && toFindMarker > 41){ //blocks in the field start at marker number 42
             unique_lock<mutex> locker(mu);
             findRelativeVectorCharuco(rvec, tvec, translationVectors[Pos1], relPos);
             new_y = relPos[1];
@@ -189,9 +189,10 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
                 tempy = old_y;
             }
             counter ++;
-            if(counter == 30){
+            if(counter == 20){
                 counter = 0;
                 getVecs = false;
+                cout << "tempx=" << tempx << endl;
                 relPos[0] = tempx;
                 relPos[1] = tempy;
                 old_y=0;

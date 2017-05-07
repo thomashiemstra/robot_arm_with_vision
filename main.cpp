@@ -39,6 +39,7 @@ const float arucoSquareDimension = 0.0265f; //in meters
 double angles[7] = {0};
 char outPut[10] = {0};
 char const * portName = "\\\\.\\COM3";
+
 double t[3][3]= {{0,1,0},    //the target rotation matrix R
                  {0,0,1},
                  {1,0,0}};
@@ -96,7 +97,6 @@ void line(struct Pos start, struct Pos stop, double speed, int flip){
     double wait,current_r, ramp_distance;
     double dalpha,dbeta,dgamma;
     double alpha,beta,gamma;
-    double temp;
     double dv;
     vector<vector<double >> anglesArray;
     double r_a; /* sum of the delta angles*/
@@ -119,7 +119,7 @@ void line(struct Pos start, struct Pos stop, double speed, int flip){
         steps = r_a*200;
         wait = 40;
     }
-    /* notice j=1, we should already be at start because of the previous step, otherwise... chaos anyway*/
+    /* notice j=1, we should already be at start because of the previous step, otherwise... trouble*/
     for(j=1; j<=steps; j++){
 
         current_r = dr*j;
@@ -131,7 +131,6 @@ void line(struct Pos start, struct Pos stop, double speed, int flip){
         gamma = start.gamma + ((j/steps)*dgamma);
         ik.eulerMatrix(alpha,beta,gamma,t);
         ik.inverseKinematics(x,y,z,t,angles,flip);
-
 
         if(r<2*ramp){
             msleep(wait); /* path too short, half max speed without acceleration*/
@@ -155,7 +154,38 @@ void line(struct Pos start, struct Pos stop, double speed, int flip){
     }
     if(abs(dgrip) > 0){
         for (j=0;j<20;j++){
-            temp = start.grip + (j/20)*dgrip;
+            int temp = ceil(start.grip + (j/20)*dgrip);
+            commandArduino(angles,temp);
+            msleep(20);
+        }
+    }
+}
+/*move from point to point in x amount of seconds, */
+void pointToPoint(struct Pos start, struct Pos stop, double time, int flip){
+    double startAngles[7] = {0};
+    double stopAngles[7] = {0};
+    double tempAngle[7] = {0};
+    int dgrip = stop.grip - start.grip;
+    int tick;
+
+    ik.eulerMatrix(start.alpha, start.beta, start.gamma,t);
+    ik.inverseKinematics(start.x, start.y, start.z, t,startAngles, flip);
+    ik.eulerMatrix(stop.alpha, stop.beta, stop.gamma,t);
+    ik.inverseKinematics(stop.x, stop.y, stop.z, t,stopAngles, flip);
+
+    int steps = ceil(time*20); /* maybe steps should scale not with time but with path length, dunno */
+
+    for(int k=0; k<steps; k++){
+        double t = (double)k/steps; /* t has to go from 0 to 1*/
+        for(int i=1; i<7; i++){
+            tempAngle[i] = startAngles[i] + 3*(stopAngles[i] - startAngles[i])*pow(t,2) - 2*(stopAngles[i] - startAngles[i])*pow(t,3);
+        }
+        commandArduino(tempAngle, start.grip); /* grip not implemented yet */
+        msleep(50);
+    }
+    if(abs(dgrip) > 0){
+        for (int j=0;j<20;j++){
+            int temp = ceil(start.grip + (j/20)*dgrip);
             commandArduino(angles,temp);
             msleep(20);
         }
@@ -175,23 +205,23 @@ int wait(){
     else
         return 1;
 }
-
+//fucked
 double fixtheta(double x,double theta){
         if(x >= 0){
         if(theta > 0)
             theta = -fmod( -(theta - pi),pi/2.0);
         if(theta < -pi/2.0)
             theta = -fmod(-theta,pi/2.0);
-        if(theta < -pi/4.0 && x <= 10)
-            theta += pi/2.0;
+//        if(theta < -pi/4.0 && x <= 10)
+//            theta += pi/2.0;
         }
         if(x < 0){
             if(theta < 0)
                 theta = fmod(theta + pi,pi/2.0);
             if(theta > pi/2.0)
                 theta = fmod(theta,pi/2.0);
-            if(theta > pi/4.0 && x >= -10)
-                theta -= pi/2.0;
+//            if(theta > pi/4.0 && x >= -10)
+//                theta -= pi/2.0;
         }
         return theta;
 }
@@ -207,7 +237,7 @@ void showOff(double speed){
     setPos(&leftup,-20,30,30,0,0,0,10);
     setPos(&rightup,20,30,30,0,0,0,10);
 
-    setArmPos(start,10);
+    setArmPos(start,flip);
     wait();
     line(start,leftlow,speed,flip);
     line(leftlow,leftup,speed,flip);
@@ -331,33 +361,34 @@ void monkeySeeMonkeyDo(){
 
 void stacking(double speed, int flip){
     double x,y,z,temptheta;
-    int toFind = 43;
+    int toFind = 42;
     int looptieloop = 1;
     vector<double> relPos1(3);
     bool getVecs = false;
     Mat cameraMatrix = Mat::eye(3,3, CV_64F);
     Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
     Mat relativeMatrix = Mat::zeros(3,3, CV_64F);
-    CAM.getMatrixFromFile("CameraCalibration", cameraMatrix, distanceCoefficients);
+    CAM.getMatrixFromFile("CameraCalibration720.dat", cameraMatrix, distanceCoefficients);
 
     struct Pos drop;
-    setPos(&drop, -20,25,0.5,0,0,0,10);
+    setPos(&drop, -20,25,0.5,0,0,-45*degtorad,10);
     setArmPos(drop, flip);
 
     thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
     t.detach();
     looptieloop = wait();
     int counter = 0;
-    getVecs = true;
     while(looptieloop){
+        getVecs = true;
         unique_lock<mutex> locker(mu);
         cond.wait(locker, [&]{return !getVecs;});
-        x = 100*relPos1[0] -0.5; y = 100*relPos1[1] + 10.5; z = 0.5;
+        x = 100*relPos1[0]; y = 100*relPos1[1] + 10.5; z = 0.5;
         temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+        locker.unlock();
         toFind++;
         returnBlock(x,y,z,temptheta,speed,flip,drop,counter);
         counter++;
-        if(toFind>45){
+        if(toFind>44){
             looptieloop = 0;
             break;
         }
@@ -367,14 +398,23 @@ void stacking(double speed, int flip){
 int main(void)
 {
     double speed = 25;
-    int flip = 1;
+    int flip = 0;
     /* connect to arduino*/
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
 
+    struct Pos start,stop;
+    setPos(&start,-15,25,10,0,0,0,10);
+    setPos(&stop,15,25,20,-45*degtorad,0,45*degtorad,10);
+    setArmPos(start,flip);
+    wait();
+    pointToPoint(start,stop,2,flip);
+    wait();
+    pointToPoint(stop,start,2,flip);
     //showOff(speed);
-    monkeySeeMonkeyDo();
-    //stacking(speed,flip);
+    //monkeySeeMonkeyDo();
+    //ashestacking(speed,flip);
+
 
     return 1;
 }
