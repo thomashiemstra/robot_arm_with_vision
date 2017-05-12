@@ -395,26 +395,16 @@ void stacking(double speed, int flip){
     }
 }
 
-int main(void)
-{
+int main(void){
     double speed = 25;
     int flip = 0;
     /* connect to arduino*/
-    arduino = new Serial(portName);
-    cout << "is connected: " << arduino->IsConnected() << std::endl;
+//    arduino = new Serial(portName);
+//    cout << "is connected: " << arduino->IsConnected() << std::endl;
 
-    struct Pos start,stop;
-    setPos(&start,-15,25,10,0,0,0,10);
-    setPos(&stop,15,25,20,-45*degtorad,0,45*degtorad,10);
-    setArmPos(start,flip);
-    wait();
-    pointToPoint(start,stop,2,flip);
-    wait();
-    pointToPoint(stop,start,2,flip);
     //showOff(speed);
     //monkeySeeMonkeyDo();
     //ashestacking(speed,flip);
-
 
     return 1;
 }
