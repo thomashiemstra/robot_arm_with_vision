@@ -1,5 +1,4 @@
 #include "tricks.h"
-
 #include <iostream>
 #include <stdio.h>
 #include <time.h>
@@ -44,12 +43,10 @@ struct Pos{
     int grip;
 };
 
-
-Tricks::Tricks(char const * portName)
-{
+Tricks::Tricks(char const * portName){
     /* connect to arduino*/
-    arduino = new Serial(portName);
-    cout << "is connected: " << arduino->IsConnected() << std::endl;
+//    arduino = new Serial(portName);
+//    cout << "is connected: " << arduino->IsConnected() << std::endl;
     return;
 }
 
@@ -61,7 +58,6 @@ void Tricks::msleep(long ms){  /* delay function in miliseconds*/
     wait.tv_nsec = (us % (1000 * 1000)) * 1000;
     nanosleep(&wait, NULL);
 }
-
 
 void Tricks::sendStuff(int16_t *val){ //sending 7 2 byte ints over serial
 	uint8_t bytes[16];
@@ -166,7 +162,6 @@ void Tricks::line(struct Pos start, struct Pos stop, double speed, int flip){
         }
     }
 }
-
 
 /*move from point to point in x amount of seconds, */
 void Tricks::pointToPoint(struct Pos start, struct Pos stop, double time, int flip){
@@ -353,7 +348,7 @@ void Tricks::monkeySeeMonkeyDo(){
     while(true){
         unique_lock<mutex> locker(mu);
         cond.wait(locker, [&]{return !getVecs;});
-            x = 100*relPos1[0] - 4*relativeMatrix.at<double>(0,1) - 27 ; y = 100*relPos1[1] + 30 - 4*relativeMatrix.at<double>(1,1); z = 100*relPos1[2] + 5 - 4*relativeMatrix.at<double>(2,1);
+            x = 100*relPos1[0] - 2*relativeMatrix.at<double>(0,1) - 27 ; y = 100*relPos1[1] + 30 - 2*relativeMatrix.at<double>(1,1); z = 100*relPos1[2] + 5 - 2*relativeMatrix.at<double>(2,1);
             cout << "\r" << " x=" << x << " y=" << y << "  z" << z <<"                   " << flush;
             /* can this be done with a for loop? I don't care anymore...*/
             w[0][0] = relativeMatrix.at<double>(0,2);   w[0][1] = relativeMatrix.at<double>(0,0);   w[0][2] = relativeMatrix.at<double>(0,1);

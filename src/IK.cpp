@@ -7,10 +7,14 @@
 #include<vector>
 #include <chrono>
 
+#define x_comp  0
+#define y_comp  1
+#define z_comp  2
+
 #define d1  12.5   //ground to q1
 #define d6  13 //gripper to wrist
-#define a_2 15    //q1 to q2
-#define a_3 17.2  //q2 to wrist
+#define a2 15    //q1 to q2
+#define d4 17.2  //q2 to wrist called d4 in the book
 #define pi  3.14159265358979323846264338327950288419716939937510
 #define degtorad 0.01745329251994329576923690768488612713
 #define radtodeg 57.2957795130823208767981548141051703324
@@ -20,13 +24,13 @@ using namespace::std;
 double epsilon = 0.05; /*use to avoid wrist singularities */
 /* arrays for the multimap function which makes the servos a bit more linear */
 double inangles[5]      =  {0,pi/4.0, pi/2.0, (3.0/4.0)*pi, pi};
-double servovals[7][5] =   	{	{225,345,465,600,740}, //0
-								{250,360,480,630,765}, //1
-								{240,360,485,625,760}, //2
-								{260,370,500,650,780}, //3
-								{240,405,590,775,925}, //4
-								{180,360,555,770,960}, //5 goes from 0 to 270 aka -135 to +135
-								{265,400,565,730,890} };//6
+double servovals[7][5] =   	{	{225,345,470,610,750}, //0
+								{250,360,490,630,765}, //1
+								{245,365,490,630,766}, //2
+								{270,380,510,660,795}, //3
+								{240,410,595,785,935}, //4
+								{190,370,565,780,970}, //5 goes from 0 to 270 aka -135 to +135
+								{245,390,545,715,875} };//6
 
 IK::IK(void){
 	return;
@@ -84,11 +88,11 @@ void IK::inverseKinematics(double x,double y,double z,double t[3][3],double angl
     /* http://www.hessmer.org/uploads/RobotArm/Inverse%2520Kinematics%2520for%2520Robot%2520Arm.pdf */
     angles[1] = atan2l(yc,xc);
 
-    D = ( pow(xc,2) + pow(yc,2) + pow((zc-d1),2) - pow(a_2,2) - pow(a_3,2) )/(2*a_2*a_3);
+    D = ( pow(xc,2) + pow(yc,2) + pow((zc-d1),2) - pow(a2,2) - pow(d4,2) )/(2*a2*d4);
     angles[3] = atan2l(-sqrt(1 - pow(D,2)),D );
 
-    k1 = a_2+a_3*cosl(angles[3]);
-    k2 = a_3*sinl(angles[3]);
+    k1 = a2+d4*cosl(angles[3]);
+    k2 = d4*sinl(angles[3]);
     angles[2] = atan2l( (zc-d1), sqrt(pow(xc,2) + pow(yc,2)) ) - atan2l(k2,k1) ;
 
     /* the DH frame is rotated 90 degrees compared to the calculated value see 2.9.7 from the book*/
@@ -145,20 +149,15 @@ void IK::inverseKinematicsRaw(double x,double y,double z,double t[3][3],double a
     xc = x - d6*t[0][2];
     yc = y - d6*t[1][2];
     zc = z - d6*t[2][2];
-    cout << "wrist pos:" << endl;
-    cout << xc << endl;
-    cout << yc << endl;
-    cout << zc << endl;
     /* solve inverse kinematics for the first 3 angles found in: */
     /* http://www.hessmer.org/uploads/RobotArm/Inverse%2520Kinematics%2520for%2520Robot%2520Arm.pdf */
     angles[1] = atan2l(yc,xc);
 
-    D = ( pow(xc,2) + pow(yc,2) + pow((zc-d1),2) - pow(a_2,2) - pow(a_3,2) )/(2*a_2*a_3);
-    cout << "D=" << D << endl;
+    D = ( pow(xc,2) + pow(yc,2) + pow((zc-d1),2) - pow(a2,2) - pow(d4,2) )/(2*a2*d4);
     angles[3] = atan2l(-sqrt(1 - pow(D,2)),D );
-    cout << "3=" << angles[3] << endl;
-    k1 = a_2+a_3*cosl(angles[3]);
-    k2 = a_3*sinl(angles[3]);
+
+    k1 = a2+d4*cosl(angles[3]);
+    k2 = d4*sinl(angles[3]);
     angles[2] = atan2l( (zc-d1), sqrt(pow(xc,2) + pow(yc,2)) ) - atan2l(k2,k1) ;
 
     /* the DH frame is rotated 90 degrees compared to the calculated value see 2.9.7 from the book*/
@@ -195,13 +194,59 @@ void IK::inverseKinematicsRaw(double x,double y,double z,double t[3][3],double a
 	}
 }
 
-void IK::convertAngles(double angles[7]){
+void IK::convertAngles(double inangles[7], double outangles[7]){
     /* all that follows now is fixing the angles because some of the servo orientations */
     /* do no align with the DH frames and servo's can only move 180 degrees*/
-	angles[1] = angles[1];
-    angles[2] = angles[2];
-    angles[3] = -(angles[3] - pi/2);
-    angles[4] = (0.5*angles[4] + pi/2); /* 2:1 gear ration for this one*/
-    angles[5] = (pi/2.0) - (2.0/3.0)*angles[5] ; /* a 270 degree servo goes from 135 to -135 degrees */
-	angles[6] = (pi/2.0) + 0.5*angles[6]; /* again 2:1*/
+	outangles[1] = inangles[1];
+    outangles[2] = inangles[2];
+    outangles[3] = -(inangles[3] - pi/2);
+    outangles[4] = (0.5*inangles[4] + pi/2); /* 2:1 gear ration for this one*/
+    outangles[5] = (pi/2.0) - (2.0/3.0)*inangles[5] ; /* a 270 degree servo goes from 135 to -135 degrees */
+	outangles[6] = (pi/2.0) + 0.5*inangles[6]; /* again 2:1*/
+}
+/* only gives the position of all the joins*/
+void IK::forwardKinematics(double angles[7], double jointPos[7][3]){
+    double q1,q2,q3,q4,q5;
+    q1=angles[1]; q2=angles[2]; q3=angles[3]; q4=angles[4]; q5=angles[5];
+
+    jointPos[1][x_comp] = 0;
+    jointPos[1][y_comp] = 0;
+    jointPos[1][z_comp] = d1;
+
+    jointPos[2][x_comp] = jointPos[3][x_comp] = a2*cos(q1)*cos(q2);
+    jointPos[2][y_comp] = jointPos[3][y_comp] = a2*cos(q2)*sin(q1);
+    jointPos[2][z_comp] = jointPos[3][z_comp] = d1+a2*sin(q2);
+
+    jointPos[4][x_comp] = jointPos[5][x_comp] = cos(q1)*(a2*cos(q2)+d4*sin(q2+q3));
+    jointPos[4][y_comp] = jointPos[5][y_comp] = sin(q1)*(a2*cos(q2)+d4*sin(q2+q3));
+    jointPos[4][z_comp] = jointPos[5][z_comp] = d1-d4*cos(q2+q3)+a2*sin(q2);
+
+    jointPos[6][x_comp] = d6*sin(q1)*sin(q4)*sin(q5) + cos(q1)*(a2*cos(q2) + (d4 + d6*cos(q5))*sin(q2 + q3) + d6*cos(q2 + q3)*cos(q4)*sin(q5));
+    jointPos[6][y_comp] = cos(q3)*(d4 + d6*cos(q5))*sin(q1)*sin(q2) - d6*(cos(q4)*sin(q1)*sin(q2)*sin(q3) + cos(q1)*sin(q4))*sin(q5) + cos(q2)*sin(q1)*(a2 + (d4 + d6*cos(q5))*sin(q3) + d6*cos(q3)*cos(q4)*sin(q5));
+    jointPos[6][z_comp] =  d1 - cos(q2 + q3)*(d4 + d6*cos(q5)) + a2*sin(q2) + d6*cos(q4)*sin(q2 + q3)*sin(q5);
+}
+
+/* this function will be called in a loop going over all the world forces on all the joints */
+void IK::jacobianTransposeOnF(double F_world[7][3], double F_joint[7], double angles[7]){
+    double q1,q2,q3,q4,q5,fx,fy,fz;
+    q1=angles[1]; q2=angles[2]; q3=angles[3]; q4=angles[4]; q5=angles[5];
+
+    /* joint 2 and 3 have the exact same force on them so only 2 is done here (multiply answer by 2?) */
+    fx = F_world[2][x_comp]; fy = F_world[2][y_comp]; fz = F_world[2][z_comp];
+    F_joint[1] += a2*cos(q2)*(fy*cos(q1) - fx*sin(q1));
+    F_joint[2] += a2*(fz*cos(q1) - (fx*cos(q1) + fy*sin(q1))*sin(q2));
+
+    /* joint 4 and 5 have the exact same force as well */
+    fx = F_world[4][x_comp]; fy = F_world[4][y_comp]; fz = F_world[4][z_comp];
+    F_joint[1] += (fy*cos(q1) - fx*sin(q1))*(a2*cos(q2) + d4*sin(q2 + q3));
+    F_joint[2] += a2*fz*cos(q2) + (fx*cos(q2) + fy*sin(q1))*(d4*cos(q2 + q3) - a2*sin(q2)) + d4*fz*sin(q2 + q3);
+    F_joint[3] +=   d4*cos(q2 + q3)*(fx*cos(q1) + fy*sin(q1)) + d4*fz*sin(q2 + q3);
+
+    /* joint 6*/
+    fx = F_world[6][x_comp]; fy = F_world[6][y_comp]; fz = F_world[6][z_comp];
+    F_joint[1] += (fy*cos(q1) - fx*sin(q1))*(a2*cos(q2) + (d4 + d6*cos(q5))*sin(q2 + q3)) + d6*(cos(q2 + q3)*cos(q4)*(fy*cos(q1) - fx*sin(q1)) + (fx*cos(q1) + fy*sin(q1))*sin(q4))*sin(q5);
+    F_joint[2] += a2*fz*cos(q2) + cos(q2 + q3)*(d4 + d6*cos(q5))*(fx*cos(q1) + fy*sin(q1)) + fz*(d4 + d6*cos(q5))*sin(q2 + q3) + d6*fz*cos(q2 + q3)*cos(q4)*sin(q5) - (fx*cos(q1) + fy*sin(q1))*(a2*sin(q2) + d6*cos(q4)*sin(q2 + q3)*sin(q5));
+    F_joint[3] += (d4 + d6*cos(q5))*(cos(q2 + q3)*(fx*cos(q1) + fy*sin(q1)) + fz*sin(q2 + q3)) + d6*cos(q4)*(fz*cos(q2 + q3) - (fx*cos(q1) + fy*sin(q1))*sin(q2 + q3))*sin(q5);
+    F_joint[4] += -d6*(-fx*cos(q4)*sin(q1) + (fy*cos(q2 + q3)*sin(q1) + fz*sin(q2 + q3))*sin(q4) + cos(q1)*(fy*cos(q4) + fx*cos(q2 + q3)*sin(q4)))*sin(q5);
+    F_joint[5] += d6*cos(q5)*(cos(q4)*(cos(q2 + q3)*(fx*cos(q1) + fy*sin(q1)) + fz*sin(q2 + q3)) + (-fy*cos(q1) + fx*sin(q1))*sin(q4)) + d6*(fz*cos(q2 + q3) - (fx*cos(q1) + fy*sin(q1))*sin(q2 + q3))*sin(q5);
 }
