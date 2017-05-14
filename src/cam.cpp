@@ -323,7 +323,7 @@ bool cam::getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficie
     }
     return false;
 }
-/* obsolete function, might be useful for salvage */
+
 int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos, Mat& relativeRotMatrix, int toFindMarker){
     Mat frame;
     double new_y,old_y = 0;
@@ -342,7 +342,7 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
     vid.set(CV_CAP_PROP_FOURCC ,CV_FOURCC('M', 'J', 'P', 'G') );//MJPG drastically improves frame read times
     vid.set(CV_CAP_PROP_FRAME_WIDTH,1280);
     vid.set(CV_CAP_PROP_FRAME_HEIGHT,720);
-    //namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
+    namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
 
     vid.read(frame); /* reading 1 frame first speeds up the for loop, does it need to start up or something?*/
 
@@ -384,7 +384,8 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
             }
             //cout << "x=" << relPos[0]*100 << "  y=" << 100*relPos[1] << endl;
         }
-    //imshow("Webcam", frame);
+    waitKey(1);
+    imshow("Webcam", frame);
 
     auto temp = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> fp_ms = temp - begin;

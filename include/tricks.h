@@ -27,13 +27,16 @@
 
 extern condition_variable cond;
 extern mutex mu,grabmu;
+extern Serial *arduino;
+extern cam CAM;
+extern IK ik;
 
 using namespace std;
 
 class Tricks
 {
 	public:
-		Tricks(char const * portName);
+		Tricks();
 		void setArmPos(struct Pos Pos, int flip);
 		void line(struct Pos start, struct Pos stop, double speed, int flip);
 		void pointToPoint(struct Pos start, struct Pos stop, double time, int flip);

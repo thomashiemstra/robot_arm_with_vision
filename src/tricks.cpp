@@ -27,15 +27,12 @@
 using namespace cv;
 using namespace std;
 
+
 const float arucoSquareDimension = 0.0265f; //in meters
 double angles[7] = {0};
 double t[3][3]= {{0,1,0},    //the target rotation matrix R
                  {0,0,1},
                  {1,0,0}};
-
-IK ik = IK();
-cam CAM = cam(0,30); /* 30 is as high as she'll go*/
-Serial *arduino;
 
 struct Pos{
     double x; double y; double z;
@@ -43,10 +40,7 @@ struct Pos{
     int grip;
 };
 
-Tricks::Tricks(char const * portName){
-    /* connect to arduino*/
-//    arduino = new Serial(portName);
-//    cout << "is connected: " << arduino->IsConnected() << std::endl;
+Tricks::Tricks(){
     return;
 }
 
@@ -67,7 +61,6 @@ void Tricks::sendStuff(int16_t *val){ //sending 7 2 byte ints over serial
     }
 	arduino->WriteData(bytes,16);
 }
-
 /* gripper position is a percentage, 100% is open*/
 void Tricks::commandArduino(double angles[7], int grip){
     int16_t ticks[8];
@@ -91,7 +84,6 @@ void Tricks::setArmPos(struct Pos Pos, int flip){
     ik.inverseKinematics(x,y,z,t,angles,flip);
     commandArduino(angles,grip);
 }
-
 /* this function is a mess and also it's cheating, please ignore */
 void Tricks::line(struct Pos start, struct Pos stop, double speed, int flip){
     double j;
@@ -348,9 +340,8 @@ void Tricks::monkeySeeMonkeyDo(){
     while(true){
         unique_lock<mutex> locker(mu);
         cond.wait(locker, [&]{return !getVecs;});
-            x = 100*relPos1[0] - 2*relativeMatrix.at<double>(0,1) - 27 ; y = 100*relPos1[1] + 30 - 2*relativeMatrix.at<double>(1,1); z = 100*relPos1[2] + 5 - 2*relativeMatrix.at<double>(2,1);
-            cout << "\r" << " x=" << x << " y=" << y << "  z" << z <<"                   " << flush;
-            /* can this be done with a for loop? I don't care anymore...*/
+            x = 100*relPos1[0] - 4*relativeMatrix.at<double>(0,1) - 27 ; y = 100*relPos1[1] + 30 - 4*relativeMatrix.at<double>(1,1); z = 100*relPos1[2] + 5 - 4*relativeMatrix.at<double>(2,1);
+            //cout << "\r" << " x=" << x << " y=" << y << "  z" << z <<"                   " << flush;
             w[0][0] = relativeMatrix.at<double>(0,2);   w[0][1] = relativeMatrix.at<double>(0,0);   w[0][2] = relativeMatrix.at<double>(0,1);
             w[1][0] = relativeMatrix.at<double>(1,2);   w[1][1] = relativeMatrix.at<double>(1,0);   w[1][2] = relativeMatrix.at<double>(1,1);
             w[2][0] = relativeMatrix.at<double>(2,2);   w[2][1] = relativeMatrix.at<double>(2,0);   w[2][2] = relativeMatrix.at<double>(2,1);

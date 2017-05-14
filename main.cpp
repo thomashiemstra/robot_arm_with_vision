@@ -1,6 +1,7 @@
 #include <iostream>
 #include <thread>
 #include <mutex>
+#include <vector>
 #include <condition_variable>
 #include "IK.h"
 #include "Serial.h"
@@ -16,6 +17,8 @@
 #define z_comp  2
 #define d4 13
 
+#define degtorad 0.01745329251994329576923690768488612713
+#define radtodeg 57.2957795130823208767981548141051703324
 
 using namespace std;
 /* I feel safer globally defining these*/
@@ -26,11 +29,13 @@ condition_variable cond;
 double ***objectPoints;
 
 char const * portName = "\\\\.\\COM3";
-Tricks tricks = Tricks(portName);
-PathPlanning pp = PathPlanning(portName);
-IK ik2 = IK();
-//cam CAM1 = cam(0,30); /* 30 is as high as she'll go*/
+Tricks tricks = Tricks();
+PathPlanning pp = PathPlanning();
+cam CAM = cam(0,30); /* 30 is as high as she'll go*/
+IK ik = IK();
+Serial *arduino;
 
+const float arucoSquareDimension = 0.0265f; //in meters
 
 double w[3][3]= {{0,1,0},    //the target rotation matrix R
                  {0,0,1},
@@ -67,41 +72,51 @@ void freeCrap(int markers, int points){
      free(objectPoints);
 }
 
-int main(void){
-    //double speed = 25;
-    //int flip = 0;
+int wait(){
+    cout << "press any key to continue or esc to quit" << endl;
+    if(getch() == 27)
+        return 0;
+    else
+        return 1;
+}
 
-    //tricks.showOff(speed);
-    //tricks.monkeySeeMonkeyDo();
-    //tricks.stacking(speed,flip);
+int main(void){
+    arduino = new Serial(portName);
+    cout << "is connected: " << arduino->IsConnected() << std::endl;
+
+    Mat cameraMatrix = Mat::eye(3,3, CV_64F);
+    Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
+    Mat relativeMatrix = Mat::zeros(3,3, CV_64F);
+    CAM.getMatrixFromFile("CameraCalibration720.dat", cameraMatrix, distanceCoefficients);
+    vector<double> relPos1(3);
+
+    double theta;
 
     struct Pos start, stop;
-    tricks.setPos(&start,-15,30,10,0,0,0,10);
-    tricks.setPos(&stop,15,30,10,0,0,0,10);
+    tricks.setPos(&start,-25,30,15,0,0,0,10);
+    tricks.setPos(&stop,15,20,10,0,0,0,10);
 
-    pp.line(start, stop, 1, 0);
+    int pointDensity = 2;
+    int points;
+    int marker = 10;
+    int totalmarkers = 21;
+    /* CAREFULL! make sure this is large enough (just figure it out before hand and allocate it!)*/
+    int size = 100000;
+    allocateCrap(totalmarkers,size);
 
-//    int points;
-//    int marker = 0;
-//    int size = 1000000;
-//    allocateCrap(2,size);
-//
-//
-//    pp.createPointsBox(marker,10,objectPoints, points);
-//    cout << points << endl;
-//    cout << objectPoints[marker][points-1][x_comp] << endl;
-//    double res = 10000000;
-//    double temp;
-//    auto begin = std::chrono::high_resolution_clock::now();
-//    for(int i=0; i < points; i++){
-//        temp = sqrt(pow(objectPoints[marker][i][x_comp],2) + pow(objectPoints[marker][i][y_comp],2) + pow(objectPoints[marker][i][z_comp],2)  );
-//        if(temp < res){
-//            res = temp;
-//            //record specific point index
-//        }
-//    }
-//    auto end = std::chrono::high_resolution_clock::now();
-//    std::cout <<"took " << std::chrono::duration_cast<std::chrono::milliseconds>(end-begin).count() << "ms" << std::endl;
-//    freeCrap(2,size);
+    pp.createPointsBox(marker,pointDensity,objectPoints, points);
+    cout << points << endl;
+    CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension, relPos1, relativeMatrix, 10);
+    theta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+
+    cout << "theta=" << theta*radtodeg << endl;
+    /* x,y in centimeters */
+    relPos1[0] = 100*relPos1[0]; relPos1[1]  = 100*relPos1[1] + 10.5;
+    pp.rotTrans(10, objectPoints, points, theta, relPos1);
+
+    pp.line(start,stop,20,0,objectPoints,marker,points);
+    wait ();
+    tricks.pointToPoint(stop, start, 2, 0);
+    freeCrap(2,size);
     return 1;
 }
