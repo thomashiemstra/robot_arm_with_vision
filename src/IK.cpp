@@ -12,9 +12,9 @@
 #define z_comp  2
 
 #define d1  12.5   //ground to q1
-#define d6  13 //gripper to wrist
-#define a2 15    //q1 to q2
-#define d4 17.2  //q2 to wrist called d4 in the book
+#define d6  13.0 //gripper to wrist
+#define a2 15.0    //q1 to q2
+#define d4 17.2  //q2 to wrist
 #define pi  3.14159265358979323846264338327950288419716939937510
 #define degtorad 0.01745329251994329576923690768488612713
 #define radtodeg 57.2957795130823208767981548141051703324
@@ -204,7 +204,7 @@ void IK::convertAngles(double inangles[7], double outangles[7]){
     outangles[5] = (pi/2.0) - (2.0/3.0)*inangles[5] ; /* a 270 degree servo goes from 135 to -135 degrees */
 	outangles[6] = (pi/2.0) + 0.5*inangles[6]; /* again 2:1*/
 }
-/* only gives the position of all the joins*/
+/* only gives the position of all the joins not rotation, "joints"  3 and 5 are center of masses */
 void IK::forwardKinematics(double angles[7], double jointPos[7][3]){
     double q1,q2,q3,q4,q5;
     q1=angles[1]; q2=angles[2]; q3=angles[3]; q4=angles[4]; q5=angles[5];
@@ -213,13 +213,21 @@ void IK::forwardKinematics(double angles[7], double jointPos[7][3]){
     jointPos[1][y_comp] = 0;
     jointPos[1][z_comp] = d1;
 
-    jointPos[2][x_comp] = jointPos[3][x_comp] = a2*cos(q1)*cos(q2);
-    jointPos[2][y_comp] = jointPos[3][y_comp] = a2*cos(q2)*sin(q1);
-    jointPos[2][z_comp] = jointPos[3][z_comp] = d1+a2*sin(q2);
+    jointPos[2][x_comp]  = a2*cos(q1)*cos(q2);
+    jointPos[2][y_comp]  = a2*cos(q2)*sin(q1);
+    jointPos[2][z_comp]  = d1+a2*sin(q2);
 
-    jointPos[4][x_comp] = jointPos[5][x_comp] = cos(q1)*(a2*cos(q2)+d4*sin(q2+q3));
-    jointPos[4][y_comp] = jointPos[5][y_comp] = sin(q1)*(a2*cos(q2)+d4*sin(q2+q3));
-    jointPos[4][z_comp] = jointPos[5][z_comp] = d1-d4*cos(q2+q3)+a2*sin(q2);
+    jointPos[3][x_comp] = cos(q1)*(a2*cos(q2) + (d4/2.0)*sin(q2+q3));
+    jointPos[3][y_comp] = sin(q1)*(a2*cos(q2) + (d4/2.0)*sin(q2+q3));
+    jointPos[3][z_comp] = d1 - (d4/2.0)*cos(q2+q3)+a2*sin(q2);
+
+    jointPos[4][x_comp] =  cos(q1)*(a2*cos(q2) + d4*sin(q2+q3));
+    jointPos[4][y_comp] =  sin(q1)*(a2*cos(q2) + d4*sin(q2+q3));
+    jointPos[4][z_comp] =  d1 - d4*cos(q2+q3) + a2*sin(q2);
+
+    jointPos[5][x_comp] = (d6/2.0)*sin(q1)*sin(q4)*sin(q5) + cos(q1)*(a2*cos(q2) + (d4 + (d6/2.0)*cos(q5))*sin(q2 + q3) + (d6/2.0)*cos(q2 + q3)*cos(q4)*sin(q5));
+    jointPos[5][y_comp] = cos(q3)*(d4 + (d6/2.0)*cos(q5))*sin(q1)*sin(q2) - (d6/2.0)*(cos(q4)*sin(q1)*sin(q2)*sin(q3) + cos(q1)*sin(q4))*sin(q5) + cos(q2)*sin(q1)*(a2 + (d4 + (d6/2.0)*cos(q5))*sin(q3) + (d6/2.0)*cos(q3)*cos(q4)*sin(q5));
+    jointPos[5][z_comp] = d1 - cos(q2 + q3)*(d4 + (d6/2.0)*cos(q5)) + a2*sin(q2) + (d6/2.0)*cos(q4)*sin(q2 + q3)*sin(q5);
 
     jointPos[6][x_comp] = d6*sin(q1)*sin(q4)*sin(q5) + cos(q1)*(a2*cos(q2) + (d4 + d6*cos(q5))*sin(q2 + q3) + d6*cos(q2 + q3)*cos(q4)*sin(q5));
     jointPos[6][y_comp] = cos(q3)*(d4 + d6*cos(q5))*sin(q1)*sin(q2) - d6*(cos(q4)*sin(q1)*sin(q2)*sin(q3) + cos(q1)*sin(q4))*sin(q5) + cos(q2)*sin(q1)*(a2 + (d4 + d6*cos(q5))*sin(q3) + d6*cos(q3)*cos(q4)*sin(q5));
@@ -231,18 +239,32 @@ void IK::jacobianTransposeOnF(double F_world[7][3], double F_joint[7], double an
     double q1,q2,q3,q4,q5,fx,fy,fz;
     q1=angles[1]; q2=angles[2]; q3=angles[3]; q4=angles[4]; q5=angles[5];
 
-    /* joint 2 and 3 have the exact same force on them so only 2 is done here (multiply answer by 2?) */
+    /* joint 2 origin of DH frame*/
     fx = F_world[2][x_comp]; fy = F_world[2][y_comp]; fz = F_world[2][z_comp];
     F_joint[1] += a2*cos(q2)*(fy*cos(q1) - fx*sin(q1));
     F_joint[2] += a2*(fz*cos(q1) - (fx*cos(q1) + fy*sin(q1))*sin(q2));
 
-    /* joint 4 and 5 have the exact same force as well */
+    /* "joint" 3 is the middle between q2 and wrist */
+    fx = F_world[3][x_comp]; fy = F_world[3][y_comp]; fz = F_world[3][z_comp];
+    F_joint[1] += (fy*cos(q1) - fx*sin(q1))*(a2*cos(q2) + (d4/2.0)*sin(q2 + q3));
+    F_joint[2] += a2*fz*cos(q2) + (fx*cos(q2) + fy*sin(q1))*((d4/2.0)*cos(q2 + q3) - a2*sin(q2)) + (d4/2.0)*fz*sin(q2 + q3);
+    F_joint[3] +=   (d4/2.0)*cos(q2 + q3)*(fx*cos(q1) + fy*sin(q1)) + (d4/2.0)*fz*sin(q2 + q3);
+
+    /* joint 4 origin of DH frame */
     fx = F_world[4][x_comp]; fy = F_world[4][y_comp]; fz = F_world[4][z_comp];
     F_joint[1] += (fy*cos(q1) - fx*sin(q1))*(a2*cos(q2) + d4*sin(q2 + q3));
     F_joint[2] += a2*fz*cos(q2) + (fx*cos(q2) + fy*sin(q1))*(d4*cos(q2 + q3) - a2*sin(q2)) + d4*fz*sin(q2 + q3);
     F_joint[3] +=   d4*cos(q2 + q3)*(fx*cos(q1) + fy*sin(q1)) + d4*fz*sin(q2 + q3);
 
-    /* joint 6*/
+    /* "joint5" is the middle between the wrist and the gripper end */
+    fx = F_world[5][x_comp]; fy = F_world[5][y_comp]; fz = F_world[5][z_comp];
+    F_joint[1] += (fy*cos(q1) - fx*sin(q1))*(a2*cos(q2) + (d4 + (d6/2.0)*cos(q5))*sin(q2 + q3)) + (d6/2.0)*(cos(q2 + q3)*cos(q4)*(fy*cos(q1) - fx*sin(q1)) + (fx*cos(q1) + fy*sin(q1))*sin(q4))*sin(q5);
+    F_joint[2] += a2*fz*cos(q2) + cos(q2 + q3)*(d4 + (d6/2.0)*cos(q5))*(fx*cos(q1) + fy*sin(q1)) + fz*(d4 + (d6/2.0)*cos(q5))*sin(q2 + q3) + (d6/2.0)*fz*cos(q2 + q3)*cos(q4)*sin(q5) - (fx*cos(q1) + fy*sin(q1))*(a2*sin(q2) + (d6/2.0)*cos(q4)*sin(q2 + q3)*sin(q5));
+    F_joint[3] += (d4 + (d6/2.0)*cos(q5))*(cos(q2 + q3)*(fx*cos(q1) + fy*sin(q1)) + fz*sin(q2 + q3)) + (d6/2.0)*cos(q4)*(fz*cos(q2 + q3) - (fx*cos(q1) + fy*sin(q1))*sin(q2 + q3))*sin(q5);
+    F_joint[4] += -d6*(-fx*cos(q4)*sin(q1) + (fy*cos(q2 + q3)*sin(q1) + fz*sin(q2 + q3))*sin(q4) + cos(q1)*(fy*cos(q4) + fx*cos(q2 + q3)*sin(q4)))*sin(q5);
+    F_joint[5] += (d6/2.0)*cos(q5)*(cos(q4)*(cos(q2 + q3)*(fx*cos(q1) + fy*sin(q1)) + fz*sin(q2 + q3)) + (-fy*cos(q1) + fx*sin(q1))*sin(q4)) + d6*(fz*cos(q2 + q3) - (fx*cos(q1) + fy*sin(q1))*sin(q2 + q3))*sin(q5);
+
+    /* joint 6 origin of DH frame*/
     fx = F_world[6][x_comp]; fy = F_world[6][y_comp]; fz = F_world[6][z_comp];
     F_joint[1] += (fy*cos(q1) - fx*sin(q1))*(a2*cos(q2) + (d4 + d6*cos(q5))*sin(q2 + q3)) + d6*(cos(q2 + q3)*cos(q4)*(fy*cos(q1) - fx*sin(q1)) + (fx*cos(q1) + fy*sin(q1))*sin(q4))*sin(q5);
     F_joint[2] += a2*fz*cos(q2) + cos(q2 + q3)*(d4 + d6*cos(q5))*(fx*cos(q1) + fy*sin(q1)) + fz*(d4 + d6*cos(q5))*sin(q2 + q3) + d6*fz*cos(q2 + q3)*cos(q4)*sin(q5) - (fx*cos(q1) + fy*sin(q1))*(a2*sin(q2) + d6*cos(q4)*sin(q2 + q3)*sin(q5));

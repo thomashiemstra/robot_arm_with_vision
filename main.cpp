@@ -88,31 +88,45 @@ int main(void){
     Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
     Mat relativeMatrix = Mat::zeros(3,3, CV_64F);
     CAM.getMatrixFromFile("CameraCalibration720.dat", cameraMatrix, distanceCoefficients);
+
     vector<double> relPos1(3);
 
     double theta;
 
     struct Pos start, stop;
-    tricks.setPos(&start,-25,30,15,0,0,0,10);
-    tricks.setPos(&stop,15,20,10,0,0,0,10);
+    tricks.setPos(&start,-20,30,10,0,0,0,10);
+    tricks.setPos(&stop,20,25,25,0,0,0,10);
 
-    int pointDensity = 2;
+    int pointDensity = 10;
     int points;
     int marker = 10;
     int totalmarkers = 21;
     /* CAREFULL! make sure this is large enough (just figure it out before hand and allocate it!)*/
-    int size = 100000;
+    int size = 1000000;
     allocateCrap(totalmarkers,size);
 
     pp.createPointsBox(marker,pointDensity,objectPoints, points);
-    cout << points << endl;
+
+    cout << objectPoints[marker][45396][0] << endl;
+    cout << objectPoints[marker][45396][1] << endl;
+    cout << objectPoints[marker][45396][2] << endl;
+    cout << "---------------" << endl;
+
+
     CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension, relPos1, relativeMatrix, 10);
     theta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
 
-    cout << "theta=" << theta*radtodeg << endl;
+
     /* x,y in centimeters */
     relPos1[0] = 100*relPos1[0]; relPos1[1]  = 100*relPos1[1] + 10.5;
     pp.rotTrans(10, objectPoints, points, theta, relPos1);
+
+
+    cout << objectPoints[marker][45396][0] << endl;
+    cout << objectPoints[marker][45396][1] << endl;
+    cout << objectPoints[marker][45396][2] << endl;
+    cout << "---------------" << endl;
+
 
     pp.line(start,stop,20,0,objectPoints,marker,points);
     wait ();

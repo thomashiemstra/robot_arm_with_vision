@@ -18,13 +18,16 @@
 #define degtorad 0.01745329251994329576923690768488612713
 #define radtodeg 57.2957795130823208767981548141051703324
 
+
+double repD = 10;
+double attD = 2;
 /* parameter for the attractive force, only joints 2,4 and 6 are used since 2,3 and 4,6 share the same origin*/
-double c[7] = {0,0,1,0,1,0,0.2};
+double c[7] = {0,0,8,8,2,2,1};
 /* parameter for the repulsive force*/
-double n[7] = {0,0,4,0,4,0,3};
-/* size of the steps in radians */
-double alpha = 0.0001;
-double offset = 8; /* extra distance in cm by which to inflate the object*/
+double n[7] = {0,0,10,10,20,15,15};
+/* maximum size of the steps in radians */
+double alpha = 0.01;
+double offset = 6; /* extra distance in cm by which to inflate the object*/
 
 double s[3][3]= {{0,1,0},    //the target rotation matrix R
                  {0,0,1},
@@ -42,7 +45,7 @@ PathPlanning::PathPlanning(){
 
 
 int PathPlanning::wait(){
-    cout << "press any key to continue or esc to quit" << endl;
+    //cout << "press any key to continue or esc to quit" << endl;
     if(getch() == 27)
         return 0;
     else
@@ -86,6 +89,12 @@ void PathPlanning::rotTrans(int marker, double*** objectPoints, int points, doub
     }
 
 }
+/* f(0) = scaling - 1 f(z_max) = 0, makes the side of the box at a slight angle so the robot arm gets pushed up (I hope)*/
+double PathPlanning::factor(double z, double z_max, double scaling){
+    double a = (1.0 - scaling)/z_max;
+    double b = scaling - 1;
+    return a*z+b;
+}
 
 void PathPlanning::createPointsBox(int marker, double density, double*** objectPoints, int& points){
     double x,y,z;
@@ -100,6 +109,10 @@ void PathPlanning::createPointsBox(int marker, double density, double*** objectP
     int points_y = dims[y_comp]*density;
     int points_z = dims[z_comp]*density;
     double dl = 1.0/density;
+    double scaling = 1.2;
+    /* amount of distance to add in x or y direction to make the sides of the box be at an angle so the arm get's pushed up*/
+    double temp;
+
     //cout << points_x << endl;
     /* top */
     k=0;
@@ -115,14 +128,26 @@ void PathPlanning::createPointsBox(int marker, double density, double*** objectP
             current_point += 1;
         }
     }
+    cout << "point=" << current_point << endl;
     //cout << "---------------" << endl;
     /* back and front */
     for(i=0; i<= points_x; i++){
         for(j=0; j< points_z; j++){
             for(k=0; k < 2; k++ ){
-                x = i*dl;
                 z = j*dl;
+                temp = dims[z_comp]*factor(z,dims[z_comp] ,scaling); /* should go from scaling to 1*/
+
+                x = i*dl;
+                if (x<=dims[x_comp]/2.0)
+                    x -=temp;
+                else if(x>dims[x_comp]/2.0)
+                    x +=temp;
+
                 y = k*dims[y_comp];
+                if(y<=dims[y_comp]/2.0)
+                    y -= temp;
+                else if(y>dims[y_comp]/2.0)
+                    y += temp;
                 objectPoints[marker][current_point][x_comp] = x;
                 objectPoints[marker][current_point][y_comp] = y;
                 objectPoints[marker][current_point][z_comp] = z;
@@ -137,9 +162,20 @@ void PathPlanning::createPointsBox(int marker, double density, double*** objectP
     for(i=1; i< points_y; i++){
         for(j=0; j< points_z; j++){
             for(k=0; k < 2; k++ ){
-                y = i*dl;
                 z = j*dl;
+                temp = dims[z_comp]*factor(z,dims[z_comp] ,scaling);
+                y = i*dl;
+                if(y<=dims[y_comp]/2.0)
+                    y -= temp;
+                else if(y>dims[y_comp]/2.0)
+                    y += temp;
+
                 x = k*dims[x_comp];
+                if (x<=dims[x_comp]/2.0)
+                    x -=temp;
+                else if(x>dims[x_comp]/2.0)
+                    x +=temp;
+
                 objectPoints[marker][current_point][x_comp] = x;
                 objectPoints[marker][current_point][y_comp] = y;
                 objectPoints[marker][current_point][z_comp] = z;
@@ -160,12 +196,10 @@ void PathPlanning::getRepulsiveForceWorld(double F_world[7][3], double angles_cu
     double absD; /* magnitude of the distance between control point and object*/
     bool calc;
 
-
     ik.forwardKinematics(angles_current, currentPos);
-
-
+    /* this can be multi-threaded, check all joints at the same time */
     double res = d;
-    for(i=2; i<7; i +=2){
+    for(i=2; i<7; i ++){
         calc = false;
         for(j=0; j<points-1; j++){
             temp = sqrt(pow(currentPos[i][x_comp] - objectPoints[marker][j][x_comp], 2) + pow(currentPos[i][y_comp] - objectPoints[marker][j][y_comp], 2) + pow(currentPos[i][z_comp] - objectPoints[marker][j][z_comp], 2));
@@ -175,10 +209,6 @@ void PathPlanning::getRepulsiveForceWorld(double F_world[7][3], double angles_cu
                 calc = true;
             }
         }
-        //cout << "calc= " << calc << endl;
-
-
-
         if(calc){
             absD = sqrt( pow(currentPos[i][x_comp] - objectPoints[marker][point][x_comp],2) +  pow(currentPos[i][y_comp] - objectPoints[marker][point][y_comp],2) + pow(currentPos[i][z_comp] - objectPoints[marker][point][z_comp],2));
             F_world[i][x_comp] = n[i]*((1.0/res) - 1.0/d)*(1.0/pow(res,2))*(currentPos[i][x_comp] - objectPoints[marker][point][x_comp])/absD;
@@ -190,22 +220,28 @@ void PathPlanning::getRepulsiveForceWorld(double F_world[7][3], double angles_cu
         }
         res = d;
     }
-
 }
-
 /* needs raw angles, d is the cutoff distance between linear and quadratic potential */
 void PathPlanning::getAttractiveForceWorld(double F_world[7][3], double angles_final[7], double angles_current[7], double d){
     double currentPos[7][3];
     double goalPos[7][3];
+    double distance[7];
 
     ik.forwardKinematics(angles_final, goalPos);
     ik.forwardKinematics(angles_current, currentPos);
-    /* no quadratic term yet: d not used*/
     /* only joint 2, 4 and 6 are being evaluated since 1 does nothing, 2=3 and 4=5*/
-    for(int i=2; i<7; i +=2){
-        F_world[i][x_comp] = -c[i]*(currentPos[i][x_comp] - goalPos[i][x_comp]);
-        F_world[i][y_comp] = -c[i]*(currentPos[i][y_comp] - goalPos[i][y_comp]);
-        F_world[i][z_comp] = -c[i]*(currentPos[i][z_comp] - goalPos[i][z_comp]);
+    for(int i=2; i<7; i ++){
+        distance[i] = sqrt(pow(currentPos[i][x_comp] - goalPos[i][x_comp],2) + pow(currentPos[i][y_comp] - goalPos[i][y_comp],2) + pow(currentPos[i][z_comp] - goalPos[i][z_comp],2));
+        if(distance[i] > d ){
+            F_world[i][x_comp] = -d*c[i]*(currentPos[i][x_comp] - goalPos[i][x_comp])/distance[i];
+            F_world[i][y_comp] = -d*c[i]*(currentPos[i][y_comp] - goalPos[i][y_comp])/distance[i];
+            F_world[i][z_comp] = -d*c[i]*(currentPos[i][z_comp] - goalPos[i][z_comp])/distance[i];
+        }
+        else if(distance[i] < d){
+            F_world[i][x_comp] = -c[i]*(currentPos[i][x_comp] - goalPos[i][x_comp]);
+            F_world[i][y_comp] = -c[i]*(currentPos[i][y_comp] - goalPos[i][y_comp]);
+            F_world[i][z_comp] = -c[i]*(currentPos[i][z_comp] - goalPos[i][z_comp]);
+        }
     }
 }
 /* marker should become an array at one point*/
@@ -215,12 +251,14 @@ void PathPlanning::line(struct Pos start, struct Pos stop, int time, int flip, d
     double currentAngles[7] = {0};
     double F_world[7][3];
     double F_joints[7];
+    double currentPos[7][3];
+    double goalPos[7][3];
     double absF;
-    double temp1,temp2;
+    double temp;
     double finishedCondition;
     bool done = false;
     double servoAngles[7];
-    int counter;
+    int counter = 0;
 
     ik.eulerMatrix(start.alpha, start.beta, start.gamma,s);
     ik.inverseKinematicsRaw(start.x, start.y, start.z, s,currentAngles, flip);
@@ -230,65 +268,63 @@ void PathPlanning::line(struct Pos start, struct Pos stop, int time, int flip, d
     for(i=0; i<7; i++){
         F_joints[i] = 0;
     }
-
-    /* get first force*/
-    getAttractiveForceWorld(F_world, stopAngles, currentAngles, 1);
-    cout << "fx attractive=" << F_world[6][x_comp] << endl;
+    /* get initial force*/
+    getAttractiveForceWorld(F_world, stopAngles, currentAngles, attD);
     ik.jacobianTransposeOnF(F_world, F_joints, currentAngles);
-    getRepulsiveForceWorld(F_world, currentAngles, marker, objectPoints, points, 5);
-    cout << "fx repulsive=" << F_world[6][x_comp] << endl;
-    cout << "fy repulsive=" << F_world[6][y_comp] << endl;
-    cout << "fz repulsive=" << F_world[6][z_comp] << endl;
+    getRepulsiveForceWorld(F_world, currentAngles, marker, objectPoints, points, repD);
     ik.jacobianTransposeOnF(F_world, F_joints, currentAngles);
 
     ik.convertAngles(currentAngles,servoAngles);
     commandArduino(servoAngles,10);
 
     wait();
-
-    auto begin = std::chrono::high_resolution_clock::now();
     while(!done){
-        temp1 = temp2 = 0;
-        for(i=1; i<7; i++){
-            temp1 += pow(currentAngles[i-1] - stopAngles[i-1],2);
-            temp2 += pow(F_joints[i],2);
-        }
-        absF = sqrt(temp2);
-        finishedCondition = sqrt(temp1);
-
-        //cout << finishedCondition << endl;
-        //cout << "d1=" << currentAngles[5] - stopAngles[5] << endl;
-
-        if(counter > 100){
-            ik.convertAngles(currentAngles,servoAngles);
-            commandArduino(servoAngles,10);
-            counter = 0;
-        }
-
-        //std::this_thread::sleep_for(std::chrono::microseconds(1));
+        auto begin = std::chrono::high_resolution_clock::now();
+        finishedCondition = 0;
+        temp = 0;
+        //std::this_thread::sleep_for(std::chrono::milliseconds(2));
         //cout << "d4=" << currentAngles[4] - stopAngles[4] << endl;
+        for(i=1; i<7; i++)
+            temp += pow(F_joints[i],2);
+        absF = sqrt(temp);
 
-        if(finishedCondition < 0.4){
-            done = true;
-        }
-        //cout << "\r" << " finished=" << finishedCondition  <<"                   " << flush;
-        for(i=1; i<7; i++){
+        for(i=1; i<7; i++)
             currentAngles[i] += alpha*F_joints[i]/absF;
-        }
 
-        for(i=0; i<7; i++){
+        for(i=0; i<7; i++)
             F_joints[i] = 0;
-        }
-        getAttractiveForceWorld(F_world,stopAngles, currentAngles , 1);
+
+        getAttractiveForceWorld(F_world,stopAngles, currentAngles , attD);
         ik.jacobianTransposeOnF(F_world, F_joints, currentAngles);
-        getRepulsiveForceWorld(F_world, currentAngles, marker, objectPoints, points, 5);
+        getRepulsiveForceWorld(F_world, currentAngles, marker, objectPoints, points, repD);
         ik.jacobianTransposeOnF(F_world, F_joints, currentAngles);
+
+
+        ik.forwardKinematics(stopAngles, goalPos);
+        ik.forwardKinematics(currentAngles, currentPos);
+
+        for(i=2; i<7; i+=2)
+            finishedCondition += pow(currentPos[i][x_comp] - goalPos[i][x_comp],2) + pow(currentPos[i][y_comp] - goalPos[i][y_comp],2) + pow(currentPos[i][z_comp] - goalPos[i][z_comp],2);
+        finishedCondition = sqrt(finishedCondition);
+        if(finishedCondition < 0.4)
+            done = true;
+
+        auto temp = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> fp_ms = temp - begin;
+        double test = fp_ms.count(); /* time elapsed so far*/
+        //cout << "\r" << " time=" << test << "ms" <<"                   " << flush;
+        int hold = (int)(20 - test); /* wait at least 20 ms seconds*/
+        if(hold<0)
+            hold = 0;
+        std::this_thread::sleep_for(std::chrono::milliseconds(hold));
+
+        ik.convertAngles(currentAngles,servoAngles);
+        commandArduino(servoAngles,10);
+        counter = 0;
+
+
         counter++;
-    }
-    auto end = std::chrono::high_resolution_clock::now();
-    std::cout << "this shit took " <<std::chrono::duration_cast<std::chrono::milliseconds>(end-begin).count() << "ms" << std::endl;
-    for(i=1; i<7; i++){
-        cout << currentAngles[i] << endl;
+        //cout << "\r" << " finished=" << finishedCondition  <<"                   " << flush;
     }
     cout << "done" << endl;
 }

@@ -32,6 +32,7 @@ class PathPlanning
         int wait();
         void commandArduino(double angles[7], int grip);
         void sendStuff(int16_t *val);
+        double factor(double z, double z_max, double scaling);
 
 };
 
