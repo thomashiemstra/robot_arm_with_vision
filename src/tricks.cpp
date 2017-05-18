@@ -154,7 +154,6 @@ void Tricks::line(struct Pos start, struct Pos stop, double speed, int flip){
         }
     }
 }
-
 /*move from point to point in x amount of seconds, */
 void Tricks::pointToPoint(struct Pos start, struct Pos stop, double time, int flip){
     double startAngles[7] = {0};

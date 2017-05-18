@@ -330,6 +330,7 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
     double tempx,tempy;
     float axisLength = 0.5f * ((float)min(5, 3) * (0.0265f));
     bool validPose;
+    int found = 0;
 
     Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_4X4_50);
     Ptr<aruco::CharucoBoard> charucoboard = aruco::CharucoBoard::create(5, 3, 0.0265f, 0.0198f, markerDictionary);
@@ -346,11 +347,10 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
 
     vid.read(frame); /* reading 1 frame first speeds up the for loop, does it need to start up or something?*/
 
-    for(int i = 0; i<10; i++){
+    for(int i = 0; i<3; i++){
         auto begin = std::chrono::high_resolution_clock::now();
         if(!vid.read(frame))
             break;
-
 
         vector<Vec3d> rotationVectors, translationVectors;
         Vec3d rvec, tvec; /* for the charucoboard */
@@ -372,6 +372,7 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
 
         if(Pos1 != -1){
             findRelativeVectorCharuco(rvec, tvec, translationVectors[Pos1], relPos);
+            found = 1;
             new_y = relPos[1];
             if(new_y > old_y){
                 tempx = relPos[0];
@@ -401,5 +402,5 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
 
     relPos[0] = tempx;
     relPos[1] = tempy;
-    return 1;
+    return found;
 }

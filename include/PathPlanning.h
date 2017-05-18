@@ -24,16 +24,19 @@ class PathPlanning
     public:
         PathPlanning();
         void createPointsBox(int marker, double density, double*** objectPoints, int& points);
-        void line(struct Pos start, struct Pos stop, int time, int flip, double*** objectPoints, int marker, int points);
         void rotTrans(int marker, double*** objectPoints, int points, double theta, vector<double>& trans);
         void getRepulsiveForceWorld(double F_world[7][3], double angles_current[7], int marker, double*** objectPoints, int points, double d);
+        void lineOO(struct Pos start, struct Pos stop);
     private:
         void getAttractiveForceWorld(double F_world[7][3], double angles_final[7], double angles_initial[7], double d);
         int wait();
         void commandArduino(double angles[7], int grip);
         void sendStuff(int16_t *val);
         double factor(double z, double z_max, double scaling);
-
+        void allocateCrap(int markers, int points);
+        void freeCrap(int markers, int points);
+        void line(struct Pos start, struct Pos stop, int time, int flip, double*** objectPoints, int marker, int points);
+        void getDims(int marker, double dims[3]);
 };
 
 #endif // PATHPLANNING_H

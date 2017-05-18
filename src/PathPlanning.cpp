@@ -18,16 +18,17 @@
 #define degtorad 0.01745329251994329576923690768488612713
 #define radtodeg 57.2957795130823208767981548141051703324
 
-
-double repD = 10;
+double repD = 8;
 double attD = 2;
 /* parameter for the attractive force, only joints 2,4 and 6 are used since 2,3 and 4,6 share the same origin*/
-double c[7] = {0,0,8,8,2,2,1};
+double c[7] = {0,0,4,4,2,2,2};
 /* parameter for the repulsive force*/
 double n[7] = {0,0,10,10,20,15,15};
 /* maximum size of the steps in radians */
 double alpha = 0.01;
-double offset = 6; /* extra distance in cm by which to inflate the object*/
+double offset = 4; /* extra distance in cm by which to inflate the object*/
+const float arucoSquareDimension = 0.0265f; //in meters
+double ***objectPoints;
 
 double s[3][3]= {{0,1,0},    //the target rotation matrix R
                  {0,0,1},
@@ -101,7 +102,9 @@ void PathPlanning::createPointsBox(int marker, double density, double*** objectP
     int i,j,k;
     int current_point = 0;
     /* fill this based on the marker number*/
-    double dims[3] = {7.5,21,21};
+    double dims[3];
+    getDims(marker, dims);
+    //double dims[3] = {7.5,21,21};
     dims[x_comp] += offset;
     dims[y_comp] += offset;
     dims[z_comp] += offset;
@@ -313,7 +316,7 @@ void PathPlanning::line(struct Pos start, struct Pos stop, int time, int flip, d
         std::chrono::duration<double, std::milli> fp_ms = temp - begin;
         double test = fp_ms.count(); /* time elapsed so far*/
         //cout << "\r" << " time=" << test << "ms" <<"                   " << flush;
-        int hold = (int)(20 - test); /* wait at least 20 ms seconds*/
+        int hold = (int)(10 - test); /* wait at least 20 ms seconds else the arduino get's confused*/
         if(hold<0)
             hold = 0;
         std::this_thread::sleep_for(std::chrono::milliseconds(hold));
@@ -327,4 +330,72 @@ void PathPlanning::line(struct Pos start, struct Pos stop, int time, int flip, d
         //cout << "\r" << " finished=" << finishedCondition  <<"                   " << flush;
     }
     cout << "done" << endl;
+}
+
+void PathPlanning::lineOO(struct Pos start, struct Pos stop){
+    Mat cameraMatrix = Mat::eye(3,3, CV_64F);
+    Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
+    Mat relativeMatrix = Mat::zeros(3,3, CV_64F);
+    CAM.getMatrixFromFile("CameraCalibration720.dat", cameraMatrix, distanceCoefficients);
+
+    vector<double> relPos1(3);
+    double theta;
+
+    int objectMarkers[10] = {10,11,12,13,14,15,16,17,18,19}; /* for later use */
+    int found;
+    int pointDensity = 10;
+    int points;
+    int marker = 10; /* this should looptieloop later on*/
+    int totalmarkers = 20;
+    /* CAREFULL! make sure this is large enough (just figure it out before hand and allocate it!)*/
+    int size = 1000000;
+    allocateCrap(totalmarkers,size);
+
+    CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension, relPos1, relativeMatrix, marker);
+    theta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+    /* convert x and y to centimeters */
+    relPos1[0] = 100*relPos1[0]; relPos1[1]  = 100*relPos1[1] + 10;
+    createPointsBox(marker,pointDensity,objectPoints, points);
+    rotTrans(marker, objectPoints, points, theta, relPos1);
+
+    line(start,stop,20,0,objectPoints,marker,points);
+    wait ();
+    tricks.pointToPoint(stop, start, 2, 0);
+    freeCrap(2,size);
+}
+/* points should be the amount for the largest object */
+void PathPlanning::allocateCrap(int markers, int points){
+    int i,j;
+    objectPoints = (double ***)malloc(markers*sizeof(double **));
+    for(i=0; i<markers; i++){
+        objectPoints[i] = (double **)malloc(points*sizeof(double *));
+        for(j=0; j<points; j++){
+            objectPoints[i][j] = (double *)malloc(3*sizeof(double));
+        }
+    }
+
+}
+
+void PathPlanning::freeCrap(int markers, int points){
+    int i,j;
+    for(i=0; i<markers; i++){
+        for(j=0; j<points; j++){
+            free(objectPoints[i][j]);
+        }
+    }
+     for(i=0; i<markers; i++){
+        free(objectPoints[i]);
+     }
+     free(objectPoints);
+}
+
+void PathPlanning::getDims(int marker, double dims[3]){
+    switch(marker){
+    case 10:
+        dims[0] = 7.5; dims[1] = 21; dims[2] = 21;
+        break;
+    case 11:
+        dims[0] = 21; dims[1] = 21; dims[2] = 7.5;
+        break;
+    }
 }

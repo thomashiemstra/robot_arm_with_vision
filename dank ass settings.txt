@@ -1,0 +1,9 @@
+double repD = 10;
+double attD = 2;
+/* parameter for the attractive force, only joints 2,4 and 6 are used since 2,3 and 4,6 share the same origin*/
+double c[7] = {0,0,8,8,2,2,1};
+/* parameter for the repulsive force*/
+double n[7] = {0,0,10,10,20,15,15};
+/* maximum size of the steps in radians */
+double alpha = 0.01;
+double offset = 6; /* extra distance in cm by which to inflate the object*/
