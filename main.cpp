@@ -57,7 +57,7 @@ int main(void){
     cout << "is connected: " << arduino->IsConnected() << std::endl;
 
     struct Pos start, stop;
-    tricks.setPos(&start,-20,30,10,0,0,0,10);
+    tricks.setPos(&start,-20,30,15,0,0,0,10);
     tricks.setPos(&stop,20,25,25,0,0,0,10);
 
     pp.lineOO(start,stop,flip);

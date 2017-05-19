@@ -141,7 +141,7 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
     Ptr<aruco::CharucoBoard> charucoboard = aruco::CharucoBoard::create(5, 3, 0.0265f, 0.0198f, markerDictionary);
     Ptr<aruco::Board> board = charucoboard.staticCast<aruco::Board>();
     int counter = 0;
-    double new_y,old_y;
+    double new_y,old_y = 0;
     double tempx,tempy;
     VideoCapture vid(0);
 
@@ -323,13 +323,18 @@ bool cam::getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficie
     return false;
 }
 
-int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos, Mat& relativeRotMatrix, int toFindMarker){
+int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<vector<double > >& relPos, vector<Mat >& relativeRotMatrix, vector<int >& toFindMarkers, vector<int >& foundMarkers){
     Mat frame;
-    double new_y,old_y = 0;
-    double tempx,tempy;
+    vector<double > new_y(relPos.size()), old_y(relPos.size()), tempx(relPos.size()), tempy(relPos.size());
+
+    for(unsigned int i=0; i<relPos.size(); i++)
+        old_y[i] = 0;
+
     float axisLength = 0.5f * ((float)min(5, 3) * (0.0265f));
     bool validPose;
-    int found = 0;
+    int index;
+    int marker;
+    int inFoundMarkers;
 
     Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_4X4_50);
     Ptr<aruco::CharucoBoard> charucoboard = aruco::CharucoBoard::create(5, 3, 0.0265f, 0.0198f, markerDictionary);
@@ -344,7 +349,8 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
     vid.set(CV_CAP_PROP_FRAME_HEIGHT,720);
     namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
 
-    for(int i = 0; i<3; i++){
+    /* try to find each vector 10 times and take the position with the largest y (which is usually the most accurate reading)*/
+    for(int j = 0; j<5; j++){
         auto begin = std::chrono::high_resolution_clock::now();
         if(!vid.read(frame))
             break;
@@ -360,27 +366,32 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
         if(markerIds.size()>0)
                 aruco::interpolateCornersCharuco(markerCorners, markerIds, frame, charucoboard, charucoCorners, charucoIds, cameraMatrix, distanceCoefficients);
         validPose = aruco::estimatePoseCharucoBoard(charucoCorners, charucoIds, charucoboard, cameraMatrix, distanceCoefficients, rvec, tvec);
-        int Pos1 = findIndex(markerIds, toFindMarker);
-
-        if(Pos1 != -1)
-            aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[Pos1], translationVectors[Pos1], 0.08f);
         if(validPose)
             aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rvec, tvec, axisLength);
 
-        if(Pos1 != -1){
-            findRelativeVectorCharuco(rvec, tvec, translationVectors[Pos1], relPos);
-            found = 1;
-            new_y = relPos[1];
-            if(new_y > old_y){
-                tempx = relPos[0];
-                tempy = new_y;
-                old_y = new_y;
-                findRotMatrixCharuco(rvec, rotationVectors[Pos1], relativeRotMatrix);
+        for(unsigned int i=0; i<toFindMarkers.size(); i++){
+            marker = toFindMarkers[i];
+            index = findIndex(markerIds, marker);
+            if(index != -1){
+
+                inFoundMarkers = findIndex(foundMarkers, marker);  /* is the marker already marked as found? */
+                if(inFoundMarkers == -1) /* if not, add it to the list. We only want to add it once.*/
+                    foundMarkers.push_back(marker);
+
+                aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[index], translationVectors[index], 0.08f);
+                findRelativeVectorCharuco(rvec, tvec, translationVectors[index], relPos[marker]);
+                new_y[marker] = relPos[marker][1];
+
+                if(new_y[marker] > old_y[marker]){
+                    tempx[marker] = relPos[marker][0];
+                    tempy[marker] = relPos[marker][1];
+                    old_y[marker] = new_y[marker];
+                    findRotMatrixCharuco(rvec, rotationVectors[index], relativeRotMatrix[i]);
+                }
+                else if(new_y[marker] < old_y[marker]){
+                    tempy[marker] = old_y[marker];
+                }
             }
-            else if(new_y < old_y){
-                tempy = old_y;
-            }
-            //cout << "x=" << relPos[0]*100 << "  y=" << 100*relPos[1] << endl;
         }
     waitKey(1);
     imshow("Webcam", frame);
@@ -396,7 +407,10 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
     //auto end = std::chrono::high_resolution_clock::now();
     //std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end-begin).count() << "ms" << std::endl;
     }
-    relPos[0] = tempx;
-    relPos[1] = tempy;
-    return found;
+    for(unsigned int i=0; i<foundMarkers.size(); i++){
+        marker = foundMarkers[i];
+        relPos[marker][0] = tempx[marker];
+        relPos[marker][1] = tempy[marker];
+    }
+    return 1;
 }

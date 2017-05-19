@@ -28,6 +28,7 @@ class PathPlanning
         void getAttractiveForceWorld(double F_world[7][3], double angles_final[7], double angles_current[7]);
         void getRepulsiveForceWorld(double F_world[7][3], double angles_current[7], int marker, vector<vector<vector<double > > >& objectPoints);
         void createPointsBox(int marker, double dims[3], vector<vector<vector<double > > >& objectPoints);
+        void createPointsCylinder(int marker, double dims[3], vector<vector<vector<double > > >& objectPoints);
         void rotTrans(int marker, vector<vector<vector<double > > >& objectPoints, double theta, vector<double>& trans);
         int wait();
         void commandArduino(double angles[7], int grip);

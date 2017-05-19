@@ -20,17 +20,17 @@
 #define degtorad 0.01745329251994329576923690768488612713
 #define radtodeg 57.2957795130823208767981548141051703324
 
-double repD = 4;
+double repD = 2;
 double attD = 2;
 /* parameter for the attractive force, only joints 2,4 and 6 are used since 2,3 and 4,6 share the same origin*/
 double c[7] = {0,0,4,4,2,2,2};
 /* parameter for the repulsive force*/
 double n[7] = {0,0,10,10,20,15,15};
 /* control points are modeled as spheres (every object is approximately a sphere, even you) */
-double controlPointSize[7] = {0,0,4,4,5,3,2};
+double controlPointSize[7] = {0,0,4,4,4,2.5,1.5};
 /* maximum size of the steps in radians */
 double alpha = 0.001;
-double offset = 4; /* extra distance in cm by which to inflate the object*/
+double offset = 0; /* extra distance in cm by which to inflate the object*/
 double density = 5; /* points per cm for the objects*/
 const float arucoSquareDimension = 0.0265f; //in meters
 //double ***objectPoints;
@@ -274,35 +274,41 @@ void PathPlanning::lineOO(struct Pos start, struct Pos stop, int flip){
 
     vector<vector<vector<double > > > objectPoints;
 
-    vector<int> objectMarkers = {10,11,12,13,14,15,16,17,18,19}; /* all the possible markers of obstacles */
-    vector<int > foundMarkers;
+    vector<double> relPos1(3);
+    double theta;
 
+    int objectMarkers[10] = {10,11,12,13,14,15,16,17,18,19}; /* all the possible markers of obstacles */
+
+    vector<int > foundMarkers;
+    int found;
     int totalMarkers = 20; /* marker 10 to 19 are reserved as obstacle markers */
     objectPoints.resize(totalMarkers);
 
     vector<vector<double > > relPos;
-    vector<double > v3d(3);
     relPos.resize(50); /* we are working with a dictionary of 50 distinct markers */
-    for(int i=0; i<50; i++)
-        relPos[i].resize(3);
+    for(i=0; i=50; i++)
+        relPos[i].push_back(Vec3d);
 
     vector<Mat > relativeMatrix;
     relativeMatrix.resize(50);
-    for(int i=0; i<50; i++)
+    for(i=0; i=50; i++)
         relativeMatrix[i].push_back(Mat::zeros(3,3, CV_64F));
 
-        CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos,relativeMatrix,objectMarkers,foundMarkers);
-        for(unsigned int k=0; k<foundMarkers.size(); k++){
-            int marker  = foundMarkers[k];
-            double theta = atan2(relativeMatrix[marker].at<double>(1,0),relativeMatrix[marker].at<double>(0,0));
-            /* convert x and y to centimeters */
-            relPos[marker][0] *= 100; relPos[marker][1]  = 100*relPos[marker][1] + 10;
-            createPoints(marker,objectPoints);
-            rotTrans(marker, objectPoints, theta, relPos[marker]);
-            cout << "marker:" << marker << endl;
-            cout << "x=" << relPos[marker][0] << "\ty=" << relPos[marker][1] << endl;
-        }
 
+
+
+    for(int i=0; i<3; i++){
+        found = CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension, relPos1, relativeMatrix, objectMarkers[i]);
+        if(found){
+            foundMarkers.push_back(10 + i);
+            theta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+            /* convert x and y to centimeters */
+            relPos1[0] = 100*relPos1[0]; relPos1[1]  = 100*relPos1[1] + 10;
+            createPoints(objectMarkers[i],objectPoints);
+            rotTrans(objectMarkers[i], objectPoints, theta, relPos1);
+            int points = objectPoints[objectMarkers[i]].size();
+        }
+    }
 
     if(foundMarkers.size() == 0){
         cout << "no obstacles" << endl;
