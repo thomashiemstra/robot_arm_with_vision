@@ -191,7 +191,6 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
             if(counter == 20){
                 counter = 0;
                 getVecs = false;
-                cout << "tempx=" << tempx << endl;
                 relPos[0] = tempx;
                 relPos[1] = tempy;
                 old_y=0;
@@ -340,12 +339,10 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
     if(!vid.isOpened()){
         return -1;
     }
-    vid.set(CV_CAP_PROP_FOURCC ,CV_FOURCC('M', 'J', 'P', 'G') );//MJPG drastically improves frame read times
+    vid.set(CV_CAP_PROP_FOURCC ,CV_FOURCC('M', 'J', 'P', 'G') );/* MJPG drastically improves frame read times */
     vid.set(CV_CAP_PROP_FRAME_WIDTH,1280);
     vid.set(CV_CAP_PROP_FRAME_HEIGHT,720);
     namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
-
-    vid.read(frame); /* reading 1 frame first speeds up the for loop, does it need to start up or something?*/
 
     for(int i = 0; i<3; i++){
         auto begin = std::chrono::high_resolution_clock::now();
@@ -393,13 +390,12 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
     double test = fp_ms.count();
     int wait = (int)((1000.0/fps) - test);
     if(wait<0)
-        wait = 1;
+        wait = 0;
 
     std::this_thread::sleep_for(std::chrono::milliseconds(wait));
     //auto end = std::chrono::high_resolution_clock::now();
     //std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end-begin).count() << "ms" << std::endl;
     }
-
     relPos[0] = tempx;
     relPos[1] = tempy;
     return found;

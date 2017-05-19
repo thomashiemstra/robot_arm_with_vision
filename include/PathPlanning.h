@@ -23,20 +23,18 @@ class PathPlanning
 {
     public:
         PathPlanning();
-        void createPointsBox(int marker, double density, double*** objectPoints, int& points);
-        void rotTrans(int marker, double*** objectPoints, int points, double theta, vector<double>& trans);
-        void getRepulsiveForceWorld(double F_world[7][3], double angles_current[7], int marker, double*** objectPoints, int points, double d);
-        void lineOO(struct Pos start, struct Pos stop);
+        void lineOO(struct Pos start, struct Pos stop, int flip);
     private:
-        void getAttractiveForceWorld(double F_world[7][3], double angles_final[7], double angles_initial[7], double d);
+        void getAttractiveForceWorld(double F_world[7][3], double angles_final[7], double angles_current[7]);
+        void getRepulsiveForceWorld(double F_world[7][3], double angles_current[7], int marker, vector<vector<vector<double > > >& objectPoints);
+        void createPointsBox(int marker, double dims[3], vector<vector<vector<double > > >& objectPoints);
+        void rotTrans(int marker, vector<vector<vector<double > > >& objectPoints, double theta, vector<double>& trans);
         int wait();
         void commandArduino(double angles[7], int grip);
         void sendStuff(int16_t *val);
         double factor(double z, double z_max, double scaling);
-        void allocateCrap(int markers, int points);
-        void freeCrap(int markers, int points);
-        void line(struct Pos start, struct Pos stop, int time, int flip, double*** objectPoints, int marker, int points);
-        void getDims(int marker, double dims[3]);
+        void line(struct Pos start, struct Pos stop, int time, int flip, vector<vector<vector<double > > >& objectPoints, vector<int > foundMarkers);
+        void createPoints(int marker, vector<vector<vector<double > > >& objectPoints);
 };
 
 #endif // PATHPLANNING_H

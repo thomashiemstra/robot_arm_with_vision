@@ -50,7 +50,9 @@ int wait(){
         return 1;
 }
 
+
 int main(void){
+    int flip = 0;
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
 
@@ -58,7 +60,10 @@ int main(void){
     tricks.setPos(&start,-20,30,10,0,0,0,10);
     tricks.setPos(&stop,20,25,25,0,0,0,10);
 
-    pp.lineOO(start,stop);
+    pp.lineOO(start,stop,flip);
+
+
+
 
     return 1;
 }

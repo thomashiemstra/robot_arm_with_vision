@@ -40,6 +40,7 @@ class Tricks
 		void setArmPos(struct Pos Pos, int flip);
 		void line(struct Pos start, struct Pos stop, double speed, int flip);
 		void pointToPoint(struct Pos start, struct Pos stop, double time, int flip);
+		void anglesToAngles(double startAngles[7], double stopAngles[7], double time, int flip, int grip);
 		void setPos(struct Pos* pos, double x, double y, double z, double alpha, double beta, double gamma,int grip);
 		void showOff(double speed);
 		int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos drop,int counter);

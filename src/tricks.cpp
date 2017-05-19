@@ -185,6 +185,22 @@ void Tricks::pointToPoint(struct Pos start, struct Pos stop, double time, int fl
     }
 }
 
+void Tricks::anglesToAngles(double startAngles[7], double stopAngles[7], double time, int flip, int grip){
+    double tempAngle[7] = {0};
+
+    int steps = ceil(time*20); /* maybe steps should scale not with time but with path length, dunno */
+
+    for(int k=0; k<steps; k++){
+        double t = (double)k/steps; /* t has to go from 0 to 1*/
+        for(int i=1; i<7; i++){
+            tempAngle[i] = startAngles[i] + 3*(stopAngles[i] - startAngles[i])*pow(t,2) - 2*(stopAngles[i] - startAngles[i])*pow(t,3);
+        }
+        commandArduino(tempAngle, grip); /* grip not implemented yet */
+        msleep(50);
+    }
+
+}
+
 void Tricks::setPos(struct Pos* pos, double x, double y, double z, double alpha, double beta, double gamma,int grip){
     pos->x=x; pos->y=y; pos->z=z;
     pos->alpha=alpha; pos->beta=beta; pos->gamma=gamma;
