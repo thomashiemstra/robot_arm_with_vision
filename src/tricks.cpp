@@ -216,23 +216,20 @@ int Tricks::wait(){
 }
 
 //TODO look at behaviour for abs(x)>10
-double Tricks::fixtheta(double x,double theta){
-        if(x >= 0){
-        if(theta > 0)
-            theta = -fmod( -(theta - pi),pi/2.0);
-        if(theta < -pi/2.0)
-            theta = -fmod(-theta,pi/2.0);
-//        if(theta < -pi/4.0 && x <= 10)
-//            theta += pi/2.0;
-        }
-        if(x < 0){
-            if(theta < 0)
-                theta = fmod(theta + pi,pi/2.0);
-            if(theta > pi/2.0)
-                theta = fmod(theta,pi/2.0);
-//            if(theta > pi/4.0 && x >= -10)
-//                theta -= pi/2.0;
-        }
+double Tricks::fixtheta(double theta){
+
+        if(theta > pi/4.0 && theta <= 3*pi/4.0)
+            theta -= pi/2.0;
+
+        else if(theta > 3*pi/4.0)
+            theta -= pi;
+
+        else if(theta < -pi/4.0 && theta >= -3*pi/4.0)
+            theta += pi/2.0;
+
+        else if(theta < -3*pi/4.0)
+            theta += pi;
+
         return theta;
 }
 
@@ -286,52 +283,87 @@ void Tricks::showOff(double speed){
     }
     line(start3,start,speed,flip);
 }
-/* picks up the block found by "findVecsCharuco" and puts it at dumps location*/
-int Tricks::returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos drop,int counter){
+/* I hate this function with a burning passion*/
+int Tricks::returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter){
     unique_lock<mutex> locker(grabmu,defer_lock);
     if(!locker.try_lock()){
         cout << "already in use!" << endl;
         msleep(100);
         return 0;
     }
-    double theta;
-    double pitchdown = 45*degtorad;
-    int grip = 100;
+    double delta = 3; /* height of the block */
+    double theta,r,time;
+    double pitchdown = -45*degtorad;
     if(y < 12){
         cout << "ain't gonna wreck myself!!!" << endl;
         return 0;
     }
-    theta = fixtheta(x,temptheta);
+    theta = fixtheta(temptheta);
     cout << "x=" << x << "  y=" << y << "   theta=" <<theta << endl;
-    struct Pos  obj, objup, objuprotated, dump,dumpup;
+    struct Pos  obj, objup, dropup;
 
-    setPos(&dump, drop.x,drop.y,drop.z + 2.8*counter,drop.alpha,drop.beta,drop.gamma,100);
-    setPos(&dumpup, drop.x,drop.y,drop.z + 2.8*(counter+1),drop.alpha,drop.beta,drop.gamma,0);
-    setPos(&objup,x,y,z+10,0,0,-pitchdown,grip);
-    setPos(&objuprotated,x,y,z+10,theta,0,-pitchdown,grip);
+    setPos(&dropup, drop.x,drop.y,drop.z + delta,0,0,drop.gamma,drop.grip);
+    setPos(&objup, x,y,z + 10,theta,0,pitchdown,100);
+    setPos(&obj,x,y,z,theta,0,pitchdown,0);
 
-    line(dump,objup,speed,flip);
-    msleep(100);
+    r = sqrt(pow(dropup.x-objup.x,2) + pow(dropup.x - objup.x,2));
+    time = r/speed;
 
-    grip = 0;
-    setPos(&obj,x,y,z,theta,0,-pitchdown,grip);
-    line(objup,objuprotated,speed,flip);
-    msleep(100);
-    line(objuprotated,obj,speed/2,flip);
-    msleep(100);
+    line(drop,dropup,speed,flip);
+    pointToPoint(dropup,objup,time,flip);
+    line(objup,obj,speed/2,flip);
 
-    setPos(&objup,x,y,z+10,0,0,-pitchdown,grip);
-    setPos(&objuprotated,x,y,z+10,theta,0,-pitchdown,grip);
-    line(obj,objuprotated,speed,flip);
-    msleep(100);
-    line(objuprotated,objup,speed,flip);
-    msleep(100);
-    line(objup,dumpup,speed,flip);
-    line(dumpup,dump,speed,flip);
-    setPos(&dumpup, drop.x,drop.y,drop.z + 2.8*(counter+1),drop.alpha,drop.beta,drop.gamma,100);
-    line(dump,dumpup,speed,flip);
+    /* there should be a better way to close the gripper at all points...*/
+    setPos(&objup, x,y,z + 10,theta,0,pitchdown,0);
+    setPos(&dropup, drop.x,drop.y,drop.z + delta,0,0,drop.gamma,0);
+
+    line(obj,objup,speed,flip);
+    pointToPoint(objup,dropup,time,flip);
+    line(dropup,drop,speed/2,flip);
+
+    setPos(&dropup, drop.x,drop.y,drop.z + delta,0,0,drop.gamma,100);
+    line(drop,dropup,speed,flip);
+
+    setPos(&drop,drop.x,drop.y,drop.z + delta,0,0,drop.gamma,drop.grip);
+
     locker.unlock();
     return 1;
+}
+
+void Tricks::stacking(double speed, int flip){
+    double x,y,z,temptheta;
+    int toFind = 42;
+    int looptieloop = 1;
+    vector<double> relPos1(3);
+    bool getVecs = false;
+    Mat cameraMatrix = Mat::eye(3,3, CV_64F);
+    Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
+    Mat relativeMatrix = Mat::zeros(3,3, CV_64F);
+    CAM.getMatrixFromFile("CameraCalibration720.dat", cameraMatrix, distanceCoefficients);
+
+    struct Pos drop;
+    setPos(&drop, -20,25,1.5,0,0,-45*degtorad,100);
+    setArmPos(drop, flip);
+
+    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
+    t.detach();
+    looptieloop = wait();
+    int counter = 0;
+    while(looptieloop){
+        getVecs = true;
+        unique_lock<mutex> locker(mu);
+        cond.wait(locker, [&]{return !getVecs;});
+        x = 100*relPos1[0]; y = 100*relPos1[1] + 10.5; z = 1.5;
+        temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+        locker.unlock();
+        toFind++;
+        returnBlock(x,y,z,temptheta,speed,flip,drop,counter);
+        counter++;
+        if(toFind>45){
+            looptieloop = 0;
+            break;
+        }
+    }
 }
 
 void Tricks::monkeySeeMonkeyDo(){
@@ -365,41 +397,5 @@ void Tricks::monkeySeeMonkeyDo(){
             locker.unlock();
             getVecs = true;
             msleep(20);
-    }
-}
-
-void Tricks::stacking(double speed, int flip){
-    double x,y,z,temptheta;
-    int toFind = 42;
-    int looptieloop = 1;
-    vector<double> relPos1(3);
-    bool getVecs = false;
-    Mat cameraMatrix = Mat::eye(3,3, CV_64F);
-    Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
-    Mat relativeMatrix = Mat::zeros(3,3, CV_64F);
-    CAM.getMatrixFromFile("CameraCalibration720.dat", cameraMatrix, distanceCoefficients);
-
-    struct Pos drop;
-    setPos(&drop, -20,25,0.5,0,0,-45*degtorad,10);
-    setArmPos(drop, flip);
-
-    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
-    t.detach();
-    looptieloop = wait();
-    int counter = 0;
-    while(looptieloop){
-        getVecs = true;
-        unique_lock<mutex> locker(mu);
-        cond.wait(locker, [&]{return !getVecs;});
-        x = 100*relPos1[0]; y = 100*relPos1[1] + 10.5; z = 0.5;
-        temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
-        locker.unlock();
-        toFind++;
-        returnBlock(x,y,z,temptheta,speed,flip,drop,counter);
-        counter++;
-        if(toFind>44){
-            looptieloop = 0;
-            break;
-        }
     }
 }

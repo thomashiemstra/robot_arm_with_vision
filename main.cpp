@@ -19,6 +19,8 @@
 
 #define degtorad 0.01745329251994329576923690768488612713
 #define radtodeg 57.2957795130823208767981548141051703324
+#define pi  3.14159265358979323846264338327950288419716939937510
+
 
 using namespace std;
 /* I feel safer globally defining these*/
@@ -52,18 +54,19 @@ int wait(){
 
 
 int main(void){
-    int flip = 0;
+    int flip = 1;
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
 
-    struct Pos start, stop;
-    tricks.setPos(&start,-20,30,15,0,0,0,10);
-    tricks.setPos(&stop,20,25,25,0,0,0,10);
-
-    pp.lineOO(start,stop,flip);
-
-
-
+    tricks.stacking(20,flip);
+//    struct Pos start, stop;
+//    tricks.setPos(&start,-20,30,15,0,0,0,10);
+//    tricks.setPos(&stop,20,25,25,0,0,0,10);
+//
+//    tricks.setArmPos(start,flip);
+//    pp.lineOO(start,stop,flip);
+//    pp.lineOO(stop,start,flip);
+    //tricks.monkeySeeMonkeyDo();
 
     return 1;
 }

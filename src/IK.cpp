@@ -12,9 +12,9 @@
 #define z_comp  2
 
 #define d1  12.5   //ground to q1
-#define d6  13.0 //gripper to wrist
+#define d6  12 //gripper to wrist
 #define a2 15.0    //q1 to q2
-#define d4 17.2  //q2 to wrist
+#define d4 19.2  //q2 to wrist
 #define pi  3.14159265358979323846264338327950288419716939937510
 #define degtorad 0.01745329251994329576923690768488612713
 #define radtodeg 57.2957795130823208767981548141051703324
@@ -24,11 +24,11 @@ using namespace::std;
 double epsilon = 0.05; /*use to avoid wrist singularities */
 /* arrays for the multimap function which makes the servos a bit more linear */
 double inangles[5]      =  {0,pi/4.0, pi/2.0, (3.0/4.0)*pi, pi};
-double servovals[7][5] =   	{	{225,345,470,610,750}, //0
+double servovals[7][5] =   	{	{225,350,480,620,755}, //0
 								{250,360,490,630,765}, //1
 								{245,365,490,630,766}, //2
 								{270,380,510,660,795}, //3
-								{240,410,595,785,935}, //4
+								{240,400,585,775,930}, //4
 								{190,370,565,780,970}, //5 goes from 0 to 270 aka -135 to +135
 								{245,390,545,715,875} };//6
 

@@ -43,7 +43,7 @@ class Tricks
 		void anglesToAngles(double startAngles[7], double stopAngles[7], double time, int flip, int grip);
 		void setPos(struct Pos* pos, double x, double y, double z, double alpha, double beta, double gamma,int grip);
 		void showOff(double speed);
-		int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos drop,int counter);
+		int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter);
 		void monkeySeeMonkeyDo();
 		void stacking(double speed, int flip);
 	private:
@@ -51,7 +51,7 @@ class Tricks
         void commandArduino(double angles[7], int grip);
         void msleep(long ms);
         int wait();
-        double fixtheta(double x,double theta);
+        double fixtheta(double theta);
 };
 
 #endif

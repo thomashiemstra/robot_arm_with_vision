@@ -322,7 +322,7 @@ bool cam::getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficie
     }
     return false;
 }
-
+/* this function now takes in an array of markers to find and spits out an array of translation vectors and rotation matrices*/
 int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<vector<double > >& relPos, vector<Mat >& relativeRotMatrix, vector<int >& toFindMarkers, vector<int >& foundMarkers){
     Mat frame;
     vector<double > new_y(relPos.size()), old_y(relPos.size()), tempx(relPos.size()), tempy(relPos.size());
@@ -350,7 +350,7 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
     namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
 
     /* try to find each vector 10 times and take the position with the largest y (which is usually the most accurate reading)*/
-    for(int j = 0; j<5; j++){
+    for(int j = 0; j<10; j++){
         auto begin = std::chrono::high_resolution_clock::now();
         if(!vid.read(frame))
             break;
