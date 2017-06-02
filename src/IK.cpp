@@ -24,7 +24,7 @@ using namespace::std;
 double epsilon = 0.05; /*use to avoid wrist singularities */
 /* arrays for the multimap function which makes the servos a bit more linear */
 double inangles[5]      =  {0,pi/4.0, pi/2.0, (3.0/4.0)*pi, pi};
-double servovals[7][5] =   	{	{225,350,480,620,755}, //0
+double servovals[7][5] =   	{	{225,350,480,610,750}, //0
 								{250,360,490,630,765}, //1
 								{245,365,490,630,766}, //2
 								{270,380,510,660,795}, //3

@@ -20,18 +20,20 @@
 #define degtorad 0.01745329251994329576923690768488612713
 #define radtodeg 57.2957795130823208767981548141051703324
 
-double repD = 2;
+double repD = 4;
 double attD = 2;
-/* parameter for the attractive force, only joints 2,4 and 6 are used since 2,3 and 4,6 share the same origin*/
-double c[7] = {0,0,6,4,2,2,2};
+/* parameter for the attractive force*/
+double c[7] = {0,0,2,2,6,2,4};
 /* parameter for the repulsive force*/
 double n[7] = {0,0,5,5,10,10,10};
 /* control points are modeled as spheres (every object is approximately a sphere, even you) */
-double controlPointSize[7] = {0,0,4,5,7,4,4};
+double controlPointSize[7] = {0,0,5,5,7,4,4};
 /* maximum size of the steps in radians */
 double alpha = 0.001;
-double offset = 1; /* extra distance in cm by which to inflate the object*/
-double density = 4; /* points per cm for the objects*/
+int delay = 2;
+double offset = 2; /* extra distance in cm by which to inflate the object*/
+double scaling = 1.2;
+double density = 5; /* points per cm for the objects*/
 const float arucoSquareDimension = 0.0265f; //in meters
 
 
@@ -110,7 +112,6 @@ void PathPlanning::createPointsCylinder(int marker, double dims[3], vector<vecto
     int points_theta = ceil(2*pi*dims[r_comp]*density);
     int points_z = dims[z_comp]*density;
     double dl = 1.0/density;
-    double scaling = 1;
     vector<double > pos(3);
     double temp; /* amount of distance to add in the r direction to make the sides of the cylinder be at an angle so the arm get's pushed up*/
     /* top */
@@ -145,7 +146,6 @@ void PathPlanning::createPointsBox(int marker, double dims[3], vector<vector<vec
     int points_y = dims[y_comp]*density;
     int points_z = dims[z_comp]*density;
     double dl = 1.0/density;
-    double scaling = 1;
     double temp; /* amount of distance to add in x or y direction to make the sides of the box be at an angle so the arm get's pushed up*/
     vector<double > pos(3);
     /* top */
@@ -217,6 +217,7 @@ void PathPlanning::getRepulsiveForceWorld(double F_world[7][3], double angles_cu
     int points = objectPoints[marker].size();
 
     ik.forwardKinematics(angles_current, currentPos);
+    //cout << "\r" << " z5=" << currentPos[5][2]  <<"                   " << flush;
     /* this can be multi-threaded, check all joints at the same time */
     double res = repD;
     for(i=2; i<7; i ++){
@@ -230,6 +231,7 @@ void PathPlanning::getRepulsiveForceWorld(double F_world[7][3], double angles_cu
                 calc = true;
             }
         }
+
         if(calc){
             absD = sqrt( pow(currentPos[i][x_comp] - objectPoints[marker][point][x_comp],2) +  pow(currentPos[i][y_comp] - objectPoints[marker][point][y_comp],2) + pow(currentPos[i][z_comp] - objectPoints[marker][point][z_comp],2));
             F_world[i][x_comp] = n[i]*((1.0/res) - 1.0/repD)*(1.0/pow(res,2))*(currentPos[i][x_comp] - objectPoints[marker][point][x_comp])/absD;
@@ -302,8 +304,6 @@ void PathPlanning::lineOO(struct Pos start, struct Pos stop, int flip){
             cout << "marker:" << marker << endl;
             cout << "x=" << relPos[marker][0] << "\ty=" << relPos[marker][1] << endl;
         }
-
-
     if(foundMarkers.size() == 0){
         cout << "no obstacles" << endl;
         tricks.setArmPos(start, flip);
@@ -313,7 +313,7 @@ void PathPlanning::lineOO(struct Pos start, struct Pos stop, int flip){
     }
     cout << "done looking" << endl;
     wait();
-    line(start,stop,1,flip,objectPoints,foundMarkers);
+    line(start,stop,delay,flip,objectPoints,foundMarkers);
 
     //line(stop,start,20,flip,objectPoints,foundMarkers);
     //tricks.pointToPoint(stop, start, 2, 0);
@@ -373,7 +373,7 @@ void PathPlanning::line(struct Pos start, struct Pos stop, int time, int flip, v
         for(i=2; i<7; i+=2)
             finishedCondition += pow(currentPos[i][x_comp] - goalPos[i][x_comp],2) + pow(currentPos[i][y_comp] - goalPos[i][y_comp],2) + pow(currentPos[i][z_comp] - goalPos[i][z_comp],2);
         finishedCondition = sqrt(finishedCondition);
-        if(finishedCondition < 1)
+        if(finishedCondition < 1.5)
             done = true;
 
         auto temp = std::chrono::high_resolution_clock::now();
@@ -394,12 +394,13 @@ void PathPlanning::line(struct Pos start, struct Pos stop, int time, int flip, v
         for(i=1; i<7; i++)
             currentAngles[i] += alpha*F_joints[i]/absF;
 
-        if(counter > 10){
+        if(counter > 5){
             ik.convertAngles(currentAngles,servoAngles);
             commandArduino(servoAngles,10);
             counter = 0;
         }
         counter++;
+
         //cout << "\r" << " finished=" << finishedCondition  <<"                   " << flush;
     }
     double finalAngles[7];
@@ -412,15 +413,15 @@ void PathPlanning::createPoints(int marker, vector<vector<vector<double > > >& o
     double dims[3];
     switch(marker){
     case 10:
-        dims[x_comp] = 7.5; dims[y_comp] = 21; dims[z_comp] = 22;
+        dims[x_comp] = 7.5; dims[y_comp] = 20.5; dims[z_comp] = 21;
         createPointsBox(marker,dims,objectPoints);
         break;
     case 11:
-        dims[x_comp] = 7.5; dims[y_comp] = 23; dims[z_comp] = 22;
+        dims[x_comp] = 7.5; dims[y_comp] = 23; dims[z_comp] = 21;
         createPointsBox(marker,dims,objectPoints);
         break;
     case 12:
-        dims[x_comp] = 7.5; dims[y_comp] = 23; dims[z_comp] = 20.5;
+        dims[x_comp] = 20; dims[y_comp] = 20.5; dims[z_comp] = 7.5;
         createPointsBox(marker,dims,objectPoints);
         break;
     case 14:

@@ -291,7 +291,7 @@ int Tricks::returnBlock(double x, double y, double z, double temptheta, double s
         msleep(100);
         return 0;
     }
-    double delta = 3; /* height of the block */
+    double delta = 3.1; /* height of the block */
     double theta,r,time;
     double pitchdown = -45*degtorad;
     if(y < 12){
@@ -319,7 +319,7 @@ int Tricks::returnBlock(double x, double y, double z, double temptheta, double s
 
     line(obj,objup,speed,flip);
     pointToPoint(objup,dropup,time,flip);
-    line(dropup,drop,speed/2,flip);
+    line(dropup,drop,speed/4,flip);
 
     setPos(&dropup, drop.x,drop.y,drop.z + delta,0,0,drop.gamma,100);
     line(drop,dropup,speed,flip);
@@ -342,7 +342,7 @@ void Tricks::stacking(double speed, int flip){
     CAM.getMatrixFromFile("CameraCalibration720.dat", cameraMatrix, distanceCoefficients);
 
     struct Pos drop;
-    setPos(&drop, -20,25,1.5,0,0,-45*degtorad,100);
+    setPos(&drop, -20,25,2,0,0,-45*degtorad,100);
     setArmPos(drop, flip);
 
     thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
@@ -353,13 +353,13 @@ void Tricks::stacking(double speed, int flip){
         getVecs = true;
         unique_lock<mutex> locker(mu);
         cond.wait(locker, [&]{return !getVecs;});
-        x = 100*relPos1[0]; y = 100*relPos1[1] + 10.5; z = 1.5;
+        x = 90*relPos1[0] + 1; y = 100*relPos1[1] + 10.5; z = 2;
         temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
         locker.unlock();
         toFind++;
         returnBlock(x,y,z,temptheta,speed,flip,drop,counter);
         counter++;
-        if(toFind>45){
+        if(toFind>46){
             looptieloop = 0;
             break;
         }
@@ -387,7 +387,7 @@ void Tricks::monkeySeeMonkeyDo(){
     while(true){
         unique_lock<mutex> locker(mu);
         cond.wait(locker, [&]{return !getVecs;});
-            x = 100*relPos1[0] - 4*relativeMatrix.at<double>(0,1) - 27 ; y = 100*relPos1[1] + 30 - 4*relativeMatrix.at<double>(1,1); z = 100*relPos1[2] + 5 - 4*relativeMatrix.at<double>(2,1);
+            x = 90*relPos1[0] - 4*relativeMatrix.at<double>(0,1) - 27 ; y = 100*relPos1[1] + 30 - 4*relativeMatrix.at<double>(1,1); z = 100*relPos1[2] + 5 - 6*relativeMatrix.at<double>(2,1);
             //cout << "\r" << " x=" << x << " y=" << y << "  z" << z <<"                   " << flush;
             w[0][0] = relativeMatrix.at<double>(0,2);   w[0][1] = relativeMatrix.at<double>(0,0);   w[0][2] = relativeMatrix.at<double>(0,1);
             w[1][0] = relativeMatrix.at<double>(1,2);   w[1][1] = relativeMatrix.at<double>(1,0);   w[1][2] = relativeMatrix.at<double>(1,1);

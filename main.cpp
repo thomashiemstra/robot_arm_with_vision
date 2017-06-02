@@ -58,7 +58,7 @@ int main(void){
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
 
-    tricks.stacking(20,flip);
+
 //    struct Pos start, stop;
 //    tricks.setPos(&start,-20,30,15,0,0,0,10);
 //    tricks.setPos(&stop,20,25,25,0,0,0,10);
@@ -66,7 +66,11 @@ int main(void){
 //    tricks.setArmPos(start,flip);
 //    pp.lineOO(start,stop,flip);
 //    pp.lineOO(stop,start,flip);
-    //tricks.monkeySeeMonkeyDo();
+
+
+//    tricks.stacking(20,flip);
+//    tricks.monkeySeeMonkeyDo();
+    tricks.showOff(12);
 
     return 1;
 }
