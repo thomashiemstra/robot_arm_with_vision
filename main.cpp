@@ -68,9 +68,9 @@ int main(void){
 //    pp.lineOO(stop,start,flip);
 
 
-//    tricks.stacking(20,flip);
+    tricks.stacking(20,flip);
 //    tricks.monkeySeeMonkeyDo();
-    tricks.showOff(12);
+//    tricks.showOff(12);
 
     return 1;
 }

@@ -96,7 +96,7 @@ void IK::inverseKinematics(double x,double y,double z,double t[3][3],double angl
     angles[2] = atan2l( (zc-d1), sqrt(pow(xc,2) + pow(yc,2)) ) - atan2l(k2,k1) ;
 
     /* the DH frame is rotated 90 degrees compared to the calculated value see 2.9.7 from the book*/
-    angles[3] = angles[3] + pi/2;
+    angles[3] += pi/2;
 
     /* for my own sanity */
     q1=angles[1]; q2=angles[2]; q3=angles[3];
@@ -161,7 +161,7 @@ void IK::inverseKinematicsRaw(double x,double y,double z,double t[3][3],double a
     angles[2] = atan2l( (zc-d1), sqrt(pow(xc,2) + pow(yc,2)) ) - atan2l(k2,k1) ;
 
     /* the DH frame is rotated 90 degrees compared to the calculated value see 2.9.7 from the book*/
-    angles[3] = angles[3] + pi/2;
+    angles[3] += pi/2;
 
     /* for my own sanity */
     q1=angles[1]; q2=angles[2]; q3=angles[3];
