@@ -119,13 +119,11 @@ void IK::inverseKinematics(double x,double y,double z,double t[3][3],double angl
 		angles[4] = atan2(-ay,-ax);
 		angles[5] = atan2(-sqrt(ax*ax+ay*ay),az);
 		angles[6] = atan2(-sz,nz);
-		angles[0] = angles[5];
 	}
 	else{
 		angles[4] = atan2(ay,ax);
 		angles[5] = atan2(sqrt(ax*ax+ay*ay),az);
 		angles[6] = atan2(sz,-nz);
-		angles[0] = angles[5];
 	}
     /* all that follows now is fixing the angles because some of the servo orientations */
     /* do no align with the DH frames and servo's can only move 180 degrees*/
