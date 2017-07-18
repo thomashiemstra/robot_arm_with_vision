@@ -27,7 +27,6 @@
 using namespace cv;
 using namespace std;
 
-
 const float arucoSquareDimension = 0.0265f; //in meters
 double angles[7] = {0};
 double t[3][3]= {{0,1,0},    //the target rotation matrix R
@@ -174,7 +173,6 @@ int Tricks::wait(){
     else
         return 1;
 }
-
 //TODO look at behaviour for abs(x)>10
 double Tricks::fixtheta(double theta){
 

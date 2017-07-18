@@ -33,7 +33,7 @@ cam CAM = cam(0,30); /* 30 is as high as she'll go*/
 IK ik = IK();
 Serial *arduino;
 
-double w[3][3]= {{0,1,0},    //the target rotation matrix R
+double w[3][3]= {{0,1,0},    //the target rotation matrix
                  {0,0,1},
                  {1,0,0}};
 

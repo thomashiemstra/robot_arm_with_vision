@@ -51,7 +51,6 @@ PathPlanning::PathPlanning(){
     return;
 }
 
-
 int PathPlanning::wait(){
     //cout << "press any key to continue or esc to quit" << endl;
     if(getch() == 27)
@@ -103,7 +102,7 @@ double PathPlanning::factor(double z, double z_max, double scaling){
     double b = scaling - 1;
     return a*z+b;
 }
-
+/* represent the cylinder as a bunch of points on it's surface */
 void PathPlanning::createPointsCylinder(int marker, double dims[3], vector<vector<vector<double > > >& objectPoints){
     int i,j;
     dims[r_comp] += offset/2;
@@ -142,7 +141,7 @@ void PathPlanning::createPointsCylinder(int marker, double dims[3], vector<vecto
         }
     }
 }
-
+/* represent the box as a bunch of points on it's surface */
 void PathPlanning::createPointsBox(int marker, double dims[3], vector<vector<vector<double > > >& objectPoints){
     int i,j,k;
     dims[x_comp] += offset;
@@ -221,14 +220,10 @@ void PathPlanning::createPointsBox(int marker, double dims[3], vector<vector<vec
 }
 /* d is cutoff distance beyond which the F_world = 0*/
 void PathPlanning::getRepulsiveForceWorld(double F_world[7][3], double angles_current[7], int marker, vector<vector<vector<double > > >& objectPoints){
-
     int point;
     double currentPos[7][3];
     int points = objectPoints[marker].size();
-
     ik.forwardKinematics(angles_current, currentPos);
-
-
 
     double res = repD;
     for(int i=2; i<7; i ++){
@@ -282,6 +277,32 @@ void PathPlanning::getAttractiveForceWorld(double F_world[7][3], double angles_f
     }
 }
 
+void PathPlanning::createPoints(int marker, vector<vector<vector<double > > >& objectPoints){
+    double dims[3];
+    switch(marker){
+    case 10:
+        dims[x_comp] = 7.5; dims[y_comp] = 20.5; dims[z_comp] = 21;
+        createPointsBox(marker,dims,objectPoints);
+        break;
+    case 11:
+        dims[x_comp] = 7.5; dims[y_comp] = 23; dims[z_comp] = 21;
+        createPointsBox(marker,dims,objectPoints);
+        break;
+    case 12:
+        dims[x_comp] = 20; dims[y_comp] = 20.5; dims[z_comp] = 7.5;
+        createPointsBox(marker,dims,objectPoints);
+        break;
+    case 14:
+        dims[r_comp] = 4.5; dims[z_comp] = 33;
+        createPointsCylinder(marker,dims,objectPoints);
+        break;
+    case 15:
+        dims[r_comp] = 10.5; dims[z_comp] = 7;
+        createPointsCylinder(marker,dims,objectPoints);
+        break;
+    }
+}
+
 void PathPlanning::lineOO(struct Pos start, struct Pos stop, int flip){
     Mat cameraMatrix = Mat::eye(3,3, CV_64F);
     Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
@@ -292,29 +313,28 @@ void PathPlanning::lineOO(struct Pos start, struct Pos stop, int flip){
     vector<int > foundMarkers;
     int totalMarkers = 20; /* marker 10 to 19 are reserved as obstacle markers */
     objectPoints.resize(totalMarkers);
-
     vector<vector<double > > relPos;
     vector<double > v3d(3);
-    relPos.resize(50); /* we are working with a dictionary of 50 distinct markers */
+    /* we are working with a dictionary of 50 distinct markers, good idea hard coding this shit... */
+    relPos.resize(50);
     for(int i=0; i<50; i++)
         relPos[i].resize(3);
-
     vector<Mat > relativeMatrix;
     relativeMatrix.resize(50);
     for(int i=0; i<50; i++)
         relativeMatrix[i].push_back(Mat::zeros(3,3, CV_64F));
-
-        CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos,relativeMatrix,objectMarkers,foundMarkers);
-        for(unsigned int k=0; k<foundMarkers.size(); k++){
-            int marker  = foundMarkers[k];
-            double theta = atan2(relativeMatrix[marker].at<double>(1,0),relativeMatrix[marker].at<double>(0,0));
-            /* convert x and y to centimeters */
-            relPos[marker][0] *= 100; relPos[marker][1]  = 100*relPos[marker][1] + 10;
-            createPoints(marker,objectPoints);
-            rotTrans(marker, objectPoints, theta, relPos[marker]);
-            cout << "marker:" << marker << endl;
-            cout << "x=" << relPos[marker][0] << "\ty=" << relPos[marker][1] << endl;
-        }
+    /* find the obstacles */
+    CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos,relativeMatrix,objectMarkers,foundMarkers);
+    for(unsigned int k=0; k<foundMarkers.size(); k++){
+        int marker  = foundMarkers[k];
+        double theta = atan2(relativeMatrix[marker].at<double>(1,0),relativeMatrix[marker].at<double>(0,0));
+        /* convert x and y to centimeters */
+        relPos[marker][0] *= 100; relPos[marker][1]  = 100*relPos[marker][1] + 10;
+        createPoints(marker,objectPoints);
+        rotTrans(marker, objectPoints, theta, relPos[marker]);
+        cout << "marker:" << marker << endl;
+        cout << "x=" << relPos[marker][0] << "\ty=" << relPos[marker][1] << endl;
+    }
     if(foundMarkers.size() == 0){
         cout << "no obstacles" << endl;
         tricks.setArmPos(start, flip);
@@ -325,7 +345,6 @@ void PathPlanning::lineOO(struct Pos start, struct Pos stop, int flip){
     cout << "done looking" << endl;
     wait();
     line(start,stop,delay,flip,objectPoints,foundMarkers);
-
 }
 
 void PathPlanning::line(struct Pos start, struct Pos stop, int time, int flip, vector<vector<vector<double > > >& objectPoints, vector<int > foundMarkers){
@@ -349,20 +368,19 @@ void PathPlanning::line(struct Pos start, struct Pos stop, int time, int flip, v
     ik.inverseKinematicsRaw(stop.x, stop.y, stop.z, s,stopAngles, flip);
 
     /* just to be safe*/
-    for(i=0; i<7; i++){
+    for(i=0; i<7; i++)
         F_joints[i] = 0;
-    }
     /* get initial force*/
     getAttractiveForceWorld(F_world, stopAngles, currentAngles);
     ik.jacobianTransposeOnF(F_world, F_joints, currentAngles);
+
     for(ui = 0; ui<foundMarkers.size(); ui++){
         getRepulsiveForceWorld(F_world, currentAngles, foundMarkers[ui], objectPoints);
         ik.jacobianTransposeOnF(F_world, F_joints, currentAngles);
     }
-
     ik.convertAngles(currentAngles,servoAngles);
     commandArduino(servoAngles,10);
-    //wait();
+
     while(!done){
         auto begin = std::chrono::high_resolution_clock::now();
         finishedCondition = 0;
@@ -388,7 +406,6 @@ void PathPlanning::line(struct Pos start, struct Pos stop, int time, int flip, v
         auto temp = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> fp_ms = temp - begin;
         double test = fp_ms.count(); /* time elapsed so far*/
-        //cout << "\r" << " time=" << test << "ms" <<"                   " << flush;
         int hold = (int)(time - test); /* wait at least 10 ms seconds else the arduino get's confused*/
         if(hold<0)
             hold = 0;
@@ -409,37 +426,9 @@ void PathPlanning::line(struct Pos start, struct Pos stop, int time, int flip, v
             counter = 0;
         }
         counter++;
-
-        //cout << "\r" << " finished=" << finishedCondition  <<"                   " << flush;
     }
     double finalAngles[7];
     ik.convertAngles(stopAngles,finalAngles);
     tricks.anglesToAngles(servoAngles,finalAngles,1,flip,stop.grip);
     cout << "done" << endl;
-}
-
-void PathPlanning::createPoints(int marker, vector<vector<vector<double > > >& objectPoints){
-    double dims[3];
-    switch(marker){
-    case 10:
-        dims[x_comp] = 7.5; dims[y_comp] = 20.5; dims[z_comp] = 21;
-        createPointsBox(marker,dims,objectPoints);
-        break;
-    case 11:
-        dims[x_comp] = 7.5; dims[y_comp] = 23; dims[z_comp] = 21;
-        createPointsBox(marker,dims,objectPoints);
-        break;
-    case 12:
-        dims[x_comp] = 20; dims[y_comp] = 20.5; dims[z_comp] = 7.5;
-        createPointsBox(marker,dims,objectPoints);
-        break;
-    case 14:
-        dims[r_comp] = 4.5; dims[z_comp] = 33;
-        createPointsCylinder(marker,dims,objectPoints);
-        break;
-    case 15:
-        dims[r_comp] = 10.5; dims[z_comp] = 7;
-        createPointsCylinder(marker,dims,objectPoints);
-        break;
-    }
 }

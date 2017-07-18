@@ -60,14 +60,11 @@ short IK::getServoTick(double val, int servoNumber){ /* a multimap from angle to
   // val = constrain(val, _in[0], _in[size-1]);
   if (val <= inangles[0]) return servovals[servoNumber][0];
   if (val >= inangles[size-1]) return servovals[servoNumber][size-1];
-
   // search right interval
   int pos = 1;  // _in[0] allready tested
   while(val > inangles[pos]) pos++;
-
   // this will handle all exact "points" in the _in array
   if (val == inangles[pos]) return servovals[servoNumber][pos];
-
   // interpolate in the right segment for the rest
   return round((val - inangles[pos-1]) * (servovals[servoNumber][pos] - servovals[servoNumber][pos-1]) / (inangles[pos] - inangles[pos-1]) + servovals[servoNumber][pos-1]);
 }
@@ -94,21 +91,17 @@ void IK::inverseKinematics(double x,double y,double z,double t[3][3],double angl
     k1 = a2+d4*cosl(angles[3]);
     k2 = d4*sinl(angles[3]);
     angles[2] = atan2l( (zc-d1), sqrt(pow(xc,2) + pow(yc,2)) ) - atan2l(k2,k1) ;
-
     /* the DH frame is rotated 90 degrees compared to the calculated value see 2.9.7 from the book*/
     angles[3] += pi/2;
-
     /* for my own sanity */
     q1=angles[1]; q2=angles[2]; q3=angles[3];
     r11=t[0][0];r12=t[0][1];r13=t[0][2]; r21=t[1][0];r22=t[1][1];r23=t[1][2]; r31=t[2][0];r32=t[2][1];r33=t[2][2];
-
     /* solve inverse kinematics for the final 3 angles (2.12.5 from the book) */
     ax = r13*cosl(q1)*cosl(q2 + q3) + r23*cosl(q2 + q3)*sinl(q1) + r33*sinl(q2 + q3);
     ay = -r23*cosl(q1) + r13*sinl(q1);
     az = -r33*cosl(q2 + q3) + r13*cosl(q1)*sinl(q2 + q3) + r23*sinl(q1)*sinl(q2 + q3);
     sz = -r32*cosl(q2 + q3) + r12*cosl(q1)*sinl(q2 + q3) + r22*sinl(q1)*sinl(q2 + q3);
     nz = -r31*cosl(q2 + q3) + r11*cosl(q1)*sinl(q2 + q3) + r21*sinl(q1)*sinl(q2 + q3);
-
     /* getting the angles from the matrix only works if ax != 0 and ay != 0 */
     if(ax == 0)
         ax += epsilon;
@@ -157,21 +150,17 @@ void IK::inverseKinematicsRaw(double x,double y,double z,double t[3][3],double a
     k1 = a2+d4*cosl(angles[3]);
     k2 = d4*sinl(angles[3]);
     angles[2] = atan2l( (zc-d1), sqrt(pow(xc,2) + pow(yc,2)) ) - atan2l(k2,k1) ;
-
     /* the DH frame is rotated 90 degrees compared to the calculated value see 2.9.7 from the book*/
     angles[3] += pi/2;
-
     /* for my own sanity */
     q1=angles[1]; q2=angles[2]; q3=angles[3];
     r11=t[0][0];r12=t[0][1];r13=t[0][2]; r21=t[1][0];r22=t[1][1];r23=t[1][2]; r31=t[2][0];r32=t[2][1];r33=t[2][2];
-
     /* solve inverse kinematics for the final 3 angles (2.12.5 from the book) */
     ax = r13*cosl(q1)*cosl(q2 + q3) + r23*cosl(q2 + q3)*sinl(q1) + r33*sinl(q2 + q3);
     ay = -r23*cosl(q1) + r13*sinl(q1);
     az = -r33*cosl(q2 + q3) + r13*cosl(q1)*sinl(q2 + q3) + r23*sinl(q1)*sinl(q2 + q3);
     sz = -r32*cosl(q2 + q3) + r12*cosl(q1)*sinl(q2 + q3) + r22*sinl(q1)*sinl(q2 + q3);
     nz = -r31*cosl(q2 + q3) + r11*cosl(q1)*sinl(q2 + q3) + r21*sinl(q1)*sinl(q2 + q3);
-
     /* getting the angles from the matrix only works if ax != 0 and ay != 0 */
     if(ax == 0)
         ax += epsilon;
@@ -236,24 +225,20 @@ void IK::forwardKinematics(double angles[7], double jointPos[7][3]){
 void IK::jacobianTransposeOnF(double F_world[7][3], double F_joint[7], double angles[7]){
     double q1,q2,q3,q4,q5,fx,fy,fz;
     q1=angles[1]; q2=angles[2]; q3=angles[3]; q4=angles[4]; q5=angles[5];
-
     /* joint 2 origin of DH frame*/
     fx = F_world[2][x_comp]; fy = F_world[2][y_comp]; fz = F_world[2][z_comp];
     F_joint[1] += a2*cos(q2)*(fy*cos(q1) - fx*sin(q1));
     F_joint[2] += a2*(fz*cos(q1) - (fx*cos(q1) + fy*sin(q1))*sin(q2));
-
     /* "joint" 3 is the middle between q2 and wrist */
     fx = F_world[3][x_comp]; fy = F_world[3][y_comp]; fz = F_world[3][z_comp];
     F_joint[1] += (fy*cos(q1) - fx*sin(q1))*(a2*cos(q2) + (d4/2.0)*sin(q2 + q3));
     F_joint[2] += a2*fz*cos(q2) + (fx*cos(q2) + fy*sin(q1))*((d4/2.0)*cos(q2 + q3) - a2*sin(q2)) + (d4/2.0)*fz*sin(q2 + q3);
     F_joint[3] +=   (d4/2.0)*cos(q2 + q3)*(fx*cos(q1) + fy*sin(q1)) + (d4/2.0)*fz*sin(q2 + q3);
-
     /* joint 4 origin of DH frame */
     fx = F_world[4][x_comp]; fy = F_world[4][y_comp]; fz = F_world[4][z_comp];
     F_joint[1] += (fy*cos(q1) - fx*sin(q1))*(a2*cos(q2) + d4*sin(q2 + q3));
     F_joint[2] += a2*fz*cos(q2) + (fx*cos(q2) + fy*sin(q1))*(d4*cos(q2 + q3) - a2*sin(q2)) + d4*fz*sin(q2 + q3);
     F_joint[3] +=   d4*cos(q2 + q3)*(fx*cos(q1) + fy*sin(q1)) + d4*fz*sin(q2 + q3);
-
     /* "joint5" is the middle between the wrist and the gripper end */
     fx = F_world[5][x_comp]; fy = F_world[5][y_comp]; fz = F_world[5][z_comp];
     F_joint[1] += (fy*cos(q1) - fx*sin(q1))*(a2*cos(q2) + (d4 + (d6/2.0)*cos(q5))*sin(q2 + q3)) + (d6/2.0)*(cos(q2 + q3)*cos(q4)*(fy*cos(q1) - fx*sin(q1)) + (fx*cos(q1) + fy*sin(q1))*sin(q4))*sin(q5);
@@ -261,7 +246,6 @@ void IK::jacobianTransposeOnF(double F_world[7][3], double F_joint[7], double an
     F_joint[3] += (d4 + (d6/2.0)*cos(q5))*(cos(q2 + q3)*(fx*cos(q1) + fy*sin(q1)) + fz*sin(q2 + q3)) + (d6/2.0)*cos(q4)*(fz*cos(q2 + q3) - (fx*cos(q1) + fy*sin(q1))*sin(q2 + q3))*sin(q5);
     F_joint[4] += -d6*(-fx*cos(q4)*sin(q1) + (fy*cos(q2 + q3)*sin(q1) + fz*sin(q2 + q3))*sin(q4) + cos(q1)*(fy*cos(q4) + fx*cos(q2 + q3)*sin(q4)))*sin(q5);
     F_joint[5] += (d6/2.0)*cos(q5)*(cos(q4)*(cos(q2 + q3)*(fx*cos(q1) + fy*sin(q1)) + fz*sin(q2 + q3)) + (-fy*cos(q1) + fx*sin(q1))*sin(q4)) + d6*(fz*cos(q2 + q3) - (fx*cos(q1) + fy*sin(q1))*sin(q2 + q3))*sin(q5);
-
     /* joint 6 origin of DH frame*/
     fx = F_world[6][x_comp]; fy = F_world[6][y_comp]; fz = F_world[6][z_comp];
     F_joint[1] += (fy*cos(q1) - fx*sin(q1))*(a2*cos(q2) + (d4 + d6*cos(q5))*sin(q2 + q3)) + d6*(cos(q2 + q3)*cos(q4)*(fy*cos(q1) - fx*sin(q1)) + (fx*cos(q1) + fy*sin(q1))*sin(q4))*sin(q5);
