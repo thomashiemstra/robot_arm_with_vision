@@ -46,11 +46,11 @@ class Tricks
 		int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter);
 		void monkeySeeMonkeyDo();
 		void stacking(double speed, int flip);
+		int wait();
 	private:
         void sendStuff(int16_t *val);
         void commandArduino(double angles[7], int grip);
         void msleep(long ms);
-        int wait();
         double fixtheta(double theta);
 };
 

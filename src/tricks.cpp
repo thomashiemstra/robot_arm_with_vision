@@ -84,76 +84,36 @@ void Tricks::setArmPos(struct Pos Pos, int flip){
     ik.inverseKinematics(x,y,z,t,angles,flip);
     commandArduino(angles,grip);
 }
-/* this function is a mess and also it's cheating, please ignore */
+
 void Tricks::line(struct Pos start, struct Pos stop, double speed, int flip){
-    double j;
-    double dx,dy,dz,dr,r,x,y,z;
-    double wait,current_r, ramp_distance;
-    double dalpha,dbeta,dgamma;
-    double alpha,beta,gamma;
-    double dv;
-    vector<vector<double >> anglesArray;
-    double r_a; /* sum of the delta angles*/
-    int dgrip;
-    int steps;
-    int ramp_steps;
-    double v_max = speed/1000.0; /* the delay function is in milliseconds so we convert to cm per millisecond*/
 
-    dx = stop.x - start.x; dy = stop.y - start.y; dz = stop.z - start.z;
-    r = sqrt(dx*dx+dy*dy+dz*dz); /* total path length in centimeters */
-    dalpha = stop.alpha - start.alpha; dbeta  = stop.beta - start.beta; dgamma = stop.gamma - start.gamma;
-    r_a = abs((dalpha + dbeta + dgamma)/(2*pi)); /* a verry rough estimate for the path traveled by the wrist*/
-    dgrip = stop.grip - start.grip;
-    steps = floor(r*precision); /* steps has to be a whole number resulting in dr >= 1/precision*/
-    dr = r/steps;
-    ramp_steps = ramp*precision;
-    ramp_distance = ramp_steps*dr; /* ramp_distance >= ramp now */
-    double min_delay = dr/v_max;
-    if(r == 0){
-        steps = r_a*200;
-        wait = 40;
-    }
-    /* notice j=1, we should already be at start because of the previous step, otherwise... trouble*/
-    for(j=1; j<=steps; j++){
+    int dgrip = stop.grip - start.grip;
+    double dx = stop.x - start.x;
+    double dy = stop.y - start.y;
+    double dz = stop.z - start.z;
+    double r = sqrt(dx*dx+dy*dy+dz*dz);
+    double time = r/speed; /* speed in cm/second, time in seconds*/
+    int steps = ceil(time*20);
 
-        current_r = dr*j;
-        x = start.x + ((j/steps)*dx);
-        y = start.y + ((j/steps)*dy);
-        z = start.z + ((j/steps)*dz);
-        alpha = start.alpha + ((j/steps)*dalpha);
-        beta = start.beta + ((j/steps)*dbeta);
-        gamma = start.gamma + ((j/steps)*dgamma);
-        ik.eulerMatrix(alpha,beta,gamma,t);
-        ik.inverseKinematics(x,y,z,t,angles,flip);
-
-        if(r<2*ramp){
-            msleep(wait); /* path too short, half max speed without acceleration*/
-        }
-
-        else if(current_r <= ramp_distance + 0.01 ){ /* 0.01 in case dr gets rounded down a bit somehow*/
-            dv = j*(v_max/ramp_steps);
-            wait = dr/dv;    /* dt = dr/dv, dv=j*(speed/ramp_steps)*/
-            msleep(wait);
-        }
-        else if(current_r > ramp_distance && current_r <= r - ramp_distance + 0.01){
-            msleep(min_delay);
-        }
-        else if(current_r > r - ramp_distance + 0.01){
-            dv = v_max - ((j - (steps-ramp_steps)-1) *(v_max/ramp_steps));
-            wait = dr/dv;
-            msleep(wait);
-        }
-
+    for(int k=0; k<steps; k++){
+        double t1 = (double)k/steps; /* t1 has to go from 0 to 1*/
+        double x = start.x + 3*(stop.x - start.x)*pow(t1,2) - 2*(stop.x - start.x)*pow(t1,3);
+        double y = start.y + 3*(stop.y - start.y)*pow(t1,2) - 2*(stop.y - start.y)*pow(t1,3);
+        double z = start.z + 3*(stop.z - start.z)*pow(t1,2) - 2*(stop.z - start.z)*pow(t1,3);
+        ik.eulerMatrix(start.alpha, start.beta, start.gamma,t);
+        ik.inverseKinematics(x, y, z, t,angles, flip);
         commandArduino(angles,start.grip);
+        msleep(50);
     }
     if(abs(dgrip) > 0){
-        for (j=0;j<20;j++){
+        for (int j=0;j<20;j++){
             int temp = ceil(start.grip + (j/20)*dgrip);
             commandArduino(angles,temp);
             msleep(20);
         }
     }
 }
+
 /*move from point to point in x amount of seconds, */
 void Tricks::pointToPoint(struct Pos start, struct Pos stop, double time, int flip){
     double startAngles[7] = {0};

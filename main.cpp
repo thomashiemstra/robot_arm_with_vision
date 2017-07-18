@@ -21,7 +21,6 @@
 #define radtodeg 57.2957795130823208767981548141051703324
 #define pi  3.14159265358979323846264338327950288419716939937510
 
-
 using namespace std;
 /* I feel safer globally defining these*/
 mutex mu,grabmu;
@@ -44,19 +43,21 @@ struct Pos{
     int grip;
 };
 
-int wait(){
-    cout << "press any key to continue or esc to quit" << endl;
-    if(getch() == 27)
-        return 0;
-    else
-        return 1;
-}
-
 
 int main(void){
-    int flip = 1;
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
+
+    int flip = 0;
+    struct Pos start, stop;
+    tricks.setPos(&start,-15,25,10,0,0,0,10);
+    tricks.setPos(&stop, 15,25,10,0,0,0,10);
+
+    tricks.setArmPos(start,flip);
+    tricks.wait();
+    tricks.line(start,stop,15,flip);
+    tricks.wait();
+    tricks.line(stop,start,15,flip);
 
 
 //    struct Pos start, stop;
@@ -68,7 +69,7 @@ int main(void){
 //    pp.lineOO(stop,start,flip);
 
 
-    tricks.stacking(20,flip);
+//    tricks.stacking(20,flip);
 //    tricks.monkeySeeMonkeyDo();
 //    tricks.showOff(12);
 
