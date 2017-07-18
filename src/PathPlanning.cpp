@@ -96,7 +96,6 @@ void PathPlanning::rotTrans(int marker, vector<vector<vector<double > > >& objec
         objectPoints[marker][i][x_comp] = (c*x - s*y) + trans[x_comp];
         objectPoints[marker][i][y_comp] = (s*x + c*y) + trans[y_comp];
     }
-
 }
 /* f(0) = scaling - 1 f(z_max) = 0, makes the side of the box at a slight angle so the robot arm gets pushed up (I hope)*/
 double PathPlanning::factor(double z, double z_max, double scaling){
@@ -113,7 +112,14 @@ void PathPlanning::createPointsCylinder(int marker, double dims[3], vector<vecto
     int points_z = dims[z_comp]*density;
     double dl = 1.0/density;
     vector<double > pos(3);
-    double temp; /* amount of distance to add in the r direction to make the sides of the cylinder be at an angle so the arm get's pushed up*/
+    /* the centre point of the cylinder and the distance from the centre to the corners is stored at index 0*/
+    pos[0] = 0;
+    pos[1] = 0;
+    pos[2] = dims[z_comp]/2;
+    pos[3] = sqrt(pow(pos[2],2) + pow(dims[r_comp],2)); /* radius of the sphere encapsulating the cylinder*/
+    objectPoints[marker].push_back(pos);
+
+    double temp; /* amount of distance to add in the r direction to make the sides of the cylinder are at an angle so the arm get's pushed up*/
     /* top */
     for(j=0; j<points_theta; j++){
         double theta = ((double)j/points_theta)*2*pi;
@@ -122,7 +128,7 @@ void PathPlanning::createPointsCylinder(int marker, double dims[3], vector<vecto
         pos[y_comp] = dims[r_comp]*sin(theta);
         objectPoints[marker].push_back(pos);
     }
-
+    /* sides */
     for(i=0; i<points_z; i++){
         for(j=0; j<points_theta; j++){
             double theta = ((double)j/points_theta)*2*pi;
@@ -148,8 +154,15 @@ void PathPlanning::createPointsBox(int marker, double dims[3], vector<vector<vec
     double dl = 1.0/density;
     double temp; /* amount of distance to add in x or y direction to make the sides of the box be at an angle so the arm get's pushed up*/
     vector<double > pos(3);
+
+    /* the centre point of the box and the distance from the centre to the corners is stored at index 0*/
+    pos[0] = (dims[x_comp] - offset/2.0)/2.0;
+    pos[1] = (dims[y_comp] - offset/2.0)/2.0;
+    pos[2] =  dims[z_comp]/2;
+    pos[3] = sqrt(pow(pos[0],2) + pow(pos[1],2) + pow(pos[2],2)); /* radius of the sphere encapsulating the box*/
+    objectPoints[marker].push_back(pos);
+
     /* top */
-    k=0;
     for(i=0; i<= points_x; i++){
         for(j=0; j<= points_y; j++){
             pos[0] = i*dl - offset/2.0; /* x */
@@ -208,39 +221,39 @@ void PathPlanning::createPointsBox(int marker, double dims[3], vector<vector<vec
 }
 /* d is cutoff distance beyond which the F_world = 0*/
 void PathPlanning::getRepulsiveForceWorld(double F_world[7][3], double angles_current[7], int marker, vector<vector<vector<double > > >& objectPoints){
-    int i,j;
-    double temp; /* distance from control point to object, tries all object points and picks the shortest distance*/
+
+    int point;
     double currentPos[7][3];
-    int point; /* index of the point on the object closest to control point i*/
-    double absD; /* magnitude of the distance between control point and object*/
-    bool calc;
     int points = objectPoints[marker].size();
 
     ik.forwardKinematics(angles_current, currentPos);
-    //cout << "\r" << " z5=" << currentPos[5][2]  <<"                   " << flush;
-    /* this can be multi-threaded, check all joints at the same time */
+
+
+
     double res = repD;
-    for(i=2; i<7; i ++){
-        calc = false;
-        for(j=0; j<points-1; j++){
-            temp = sqrt(pow(currentPos[i][x_comp] - objectPoints[marker][j][x_comp], 2) + pow(currentPos[i][y_comp] - objectPoints[marker][j][y_comp], 2) + pow(currentPos[i][z_comp] - objectPoints[marker][j][z_comp], 2));
+    for(int i=2; i<7; i ++){
+        bool calc = false;
+        for(int j=0; j<points-1; j++){
+            double temp = sqrt(pow(currentPos[i][x_comp] - objectPoints[marker][j][x_comp], 2) + pow(currentPos[i][y_comp] - objectPoints[marker][j][y_comp], 2) + pow(currentPos[i][z_comp] - objectPoints[marker][j][z_comp], 2));
             temp -= controlPointSize[i];
+
+            if(j==0 && temp > objectPoints[marker][j][3])
+                break; /* controlpoint outside the sphere encapsulating the object so no need to check any further points*/
+
             if(temp < res){
                 res = temp;
                 point = j;
                 calc = true;
             }
         }
-
         if(calc){
-            absD = sqrt( pow(currentPos[i][x_comp] - objectPoints[marker][point][x_comp],2) +  pow(currentPos[i][y_comp] - objectPoints[marker][point][y_comp],2) + pow(currentPos[i][z_comp] - objectPoints[marker][point][z_comp],2));
+            double absD = sqrt( pow(currentPos[i][x_comp] - objectPoints[marker][point][x_comp],2) +  pow(currentPos[i][y_comp] - objectPoints[marker][point][y_comp],2) + pow(currentPos[i][z_comp] - objectPoints[marker][point][z_comp],2));
             F_world[i][x_comp] = n[i]*((1.0/res) - 1.0/repD)*(1.0/pow(res,2))*(currentPos[i][x_comp] - objectPoints[marker][point][x_comp])/absD;
             F_world[i][y_comp] = n[i]*((1.0/res) - 1.0/repD)*(1.0/pow(res,2))*(currentPos[i][y_comp] - objectPoints[marker][point][y_comp])/absD;
             F_world[i][z_comp] = n[i]*((1.0/res) - 1.0/repD)*(1.0/pow(res,2))*(currentPos[i][z_comp] - objectPoints[marker][point][z_comp])/absD;
         }
-        else{
-             F_world[i][x_comp] =  F_world[i][y_comp] =  F_world[i][z_comp] = 0;
-        }
+        else
+            F_world[i][x_comp] =  F_world[i][y_comp] =  F_world[i][z_comp] = 0;
         res = repD;
     }
 }
@@ -275,10 +288,8 @@ void PathPlanning::lineOO(struct Pos start, struct Pos stop, int flip){
     CAM.getMatrixFromFile("CameraCalibration720.dat", cameraMatrix, distanceCoefficients);
 
     vector<vector<vector<double > > > objectPoints;
-
     vector<int> objectMarkers = {10,11,12,13,14,15,16,17,18,19}; /* all the possible markers of obstacles */
     vector<int > foundMarkers;
-
     int totalMarkers = 20; /* marker 10 to 19 are reserved as obstacle markers */
     objectPoints.resize(totalMarkers);
 
@@ -315,8 +326,6 @@ void PathPlanning::lineOO(struct Pos start, struct Pos stop, int flip){
     wait();
     line(start,stop,delay,flip,objectPoints,foundMarkers);
 
-    //line(stop,start,20,flip,objectPoints,foundMarkers);
-    //tricks.pointToPoint(stop, start, 2, 0);
 }
 
 void PathPlanning::line(struct Pos start, struct Pos stop, int time, int flip, vector<vector<vector<double > > >& objectPoints, vector<int > foundMarkers){
