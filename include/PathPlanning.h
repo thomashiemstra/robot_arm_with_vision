@@ -24,6 +24,8 @@ class PathPlanning
     public:
         PathPlanning();
         void lineOO(struct Pos start, struct Pos stop, int flip);
+        void prepareOOThread(vector<vector<vector<double > > >& objectPoints, vector<int >& foundMarkers);
+        void line(struct Pos start, struct Pos stop, int flip, vector<vector<vector<double > > >& objectPoints, vector<int > foundMarkers);
     private:
         void getAttractiveForceWorld(double F_world[7][3], double angles_final[7], double angles_current[7]);
         void getRepulsiveForceWorld(double F_world[7][3], double angles_current[7], int marker, vector<vector<vector<double > > >& objectPoints);
@@ -31,7 +33,6 @@ class PathPlanning
         void createPointsCylinder(int marker, double dims[3], vector<vector<vector<double > > >& objectPoints);
         void rotTrans(int marker, vector<vector<vector<double > > >& objectPoints, double theta, vector<double>& trans);
         double factor(double z, double z_max, double scaling);
-        void line(struct Pos start, struct Pos stop, int time, int flip, vector<vector<vector<double > > >& objectPoints, vector<int > foundMarkers);
         void createPoints(int marker, vector<vector<vector<double > > >& objectPoints);
 };
 

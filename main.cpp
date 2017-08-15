@@ -8,6 +8,7 @@
 #include "cam.h"
 #include "tricks.h"
 #include "PathPlanning.h"
+#include "Routines.h"
 #include <algorithm>
 #include <chrono>
 #include <math.h>
@@ -33,6 +34,7 @@ PathPlanning pp = PathPlanning();
 cam CAM = cam(0,30); /* 30 is as high as she'll go*/
 IK ik = IK();
 Serial *arduino;
+Routines rout = Routines();
 
 double w[3][3]= {{0,1,0},    //the target rotation matrix
                  {0,0,1},
@@ -51,19 +53,20 @@ int main(void){
 
     int flip = 0;
 
-    struct Pos start, stop;
-    tricks.setPos(&start,-20,30,15,0,0,0,10);
-    tricks.setPos(&stop,20,25,25,0,0,0,10);
+//    struct Pos start, stop;
+//    tricks.setPos(&start,-20,30,15,0,0,0,10);
+//    tricks.setPos(&stop,20,25,25,0,0,0,10);
 
-    tricks.setArmPos(start,flip);
-    pp.lineOO(start,stop,flip);
-    tricks.wait();
-    pp.lineOO(stop,start,flip);
+//    tricks.setArmPos(start,flip);
+//    pp.lineOO(start,stop,flip);
+//    tricks.wait();
+//    pp.lineOO(stop,start,flip);
 
 
-//    tricks.stacking(20,flip);
-//    tricks.monkeySeeMonkeyDo();
-//    tricks.showOff(12);
+//   rout.stacking(15,flip);
+    rout.stackingOO(15,flip);
+//    rout.monkeySeeMonkeyDo();
+//    rout.showOff(12);
 
     return 1;
 }

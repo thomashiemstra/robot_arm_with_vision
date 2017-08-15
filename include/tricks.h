@@ -31,6 +31,7 @@ extern Serial *arduino;
 extern cam CAM;
 extern IK ik;
 
+
 using namespace std;
 
 class Tricks
@@ -45,13 +46,13 @@ class Tricks
 		void showOff(double speed);
 		int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter);
 		void monkeySeeMonkeyDo();
-		void stacking(double speed, int flip);
 		int wait();
         void sendStuff(int16_t *val);
-        void commandArduino(double angles[7], int grip);
-	private:
+        void commandArduino(double anglez[7], int grip);
         void msleep(long ms);
         double fixtheta(double theta);
+	private:
+
 };
 
 #endif

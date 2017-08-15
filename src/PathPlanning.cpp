@@ -20,19 +20,19 @@
 #define degtorad 0.01745329251994329576923690768488612713
 #define radtodeg 57.2957795130823208767981548141051703324
 
-double repD = 4;
-double attD = 2;
+double repD = 2;
+double attD = 1;
 /* parameter for the attractive force*/
 double c[7] = {0,0,2,2,6,2,4};
 /* parameter for the repulsive force*/
 double n[7] = {0,0,5,5,10,10,10};
 /* control points are modeled as spheres (every object is approximately a sphere, even you) */
-double controlPointSize[7] = {0,0,5,5,7,4,4};
+double controlPointSize[7] = {0,0,5,5,6,4,4};
 /* maximum size of the steps in radians */
 double alpha = 0.001;
 int delay = 2;
-double offset = 2; /* extra distance in cm by which to inflate the object*/
-double scaling = 1.2;
+double offset = 1; /* extra distance in cm by which to inflate the object*/
+double scaling = 1.1;
 double density = 5; /* points per cm for the objects*/
 const float arucoSquareDimension = 0.0265f; //in meters
 
@@ -203,7 +203,6 @@ void PathPlanning::getRepulsiveForceWorld(double F_world[7][3], double angles_cu
             temp -= controlPointSize[i];
 
             if(j==0 && temp > objectPoints[marker][j][3]){
-                cout << "break" << endl;
                 break; /* controlpoint outside the sphere encapsulating the object so no need to check any further points*/
             }
 
@@ -319,11 +318,47 @@ void PathPlanning::lineOO(struct Pos start, struct Pos stop, int flip){
         return;
     }
     cout << "done looking" << endl;
-    tricks.wait();
-    line(start,stop,delay,flip,objectPoints,foundMarkers);
+    //tricks.wait();
+    line(start,stop,flip,objectPoints,foundMarkers);
 }
 
-void PathPlanning::line(struct Pos start, struct Pos stop, int time, int flip, vector<vector<vector<double > > >& objectPoints, vector<int > foundMarkers){
+void PathPlanning::prepareOOThread(vector<vector<vector<double > > >& objectPoints, vector<int >& foundMarkers){
+    Mat cameraMatrix = Mat::eye(3,3, CV_64F);
+    Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
+    CAM.getMatrixFromFile("CameraCalibration720.dat", cameraMatrix, distanceCoefficients);
+
+    vector<int> objectMarkers = {10,11,12,13,14,15,16,17,18,19}; /* all the possible markers of obstacles */
+
+    int totalMarkers = 50; /* the marker library has 50 distinct markers, so let's make some room first */
+    objectPoints.resize(totalMarkers);
+
+    vector<vector<double > > relPos;
+    relPos.resize(totalMarkers);
+    for(int i=0; i<totalMarkers; i++)
+        relPos[i].resize(3);
+
+    vector<Mat > relativeMatrix;
+    relativeMatrix.resize(totalMarkers);
+    for(int i=0; i<totalMarkers; i++)
+        relativeMatrix[i].push_back(Mat::zeros(3,3, CV_64F));
+
+    /* find the obstacles */
+    CAM.findVecsCharuco(cameraMatrix, distanceCoefficients, arucoSquareDimension,relPos,relativeMatrix,objectMarkers,foundMarkers);
+    for(unsigned int k=0; k<foundMarkers.size(); k++){
+        int marker  = foundMarkers[k];
+        double theta = atan2(relativeMatrix[marker].at<double>(1,0),relativeMatrix[marker].at<double>(0,0));
+        /* convert x and y to centimeters */
+        relPos[marker][0] *= 100; relPos[marker][1]  = 100*relPos[marker][1] + 10;
+        createPoints(marker,objectPoints);
+        rotTrans(marker, objectPoints, theta, relPos[marker]);
+        cout << "marker:" << marker << endl;
+        cout << "x=" << relPos[marker][0] << "\ty=" << relPos[marker][1] << endl;
+        cout << "x_c=" << objectPoints[marker][0][0] << "    y_c=" <<  objectPoints[marker][0][1] << endl;
+    }
+    cout << "done looking" << endl;
+}
+
+void PathPlanning::line(struct Pos start, struct Pos stop, int flip, vector<vector<vector<double > > >& objectPoints, vector<int > foundMarkers){
     int i;
     unsigned int ui;
     double stopAngles[7] = {0};
@@ -381,7 +416,7 @@ void PathPlanning::line(struct Pos start, struct Pos stop, int time, int flip, v
         auto temp = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> fp_ms = temp - begin;
         double test = fp_ms.count(); /* time elapsed so far*/
-        int hold = (int)(time - test); /* wait at least 10 ms seconds else the arduino get's confused*/
+        int hold = (int)(delay - test); /* wait at least 10 ms seconds else the arduino get's confused*/
         if(hold<0)
             hold = 0;
         std::this_thread::sleep_for(std::chrono::milliseconds(hold));

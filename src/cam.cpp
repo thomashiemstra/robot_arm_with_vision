@@ -411,5 +411,6 @@ int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficient
         relPos[marker][0] = tempx[marker];
         relPos[marker][1] = tempy[marker];
     }
+    destroyWindow("Webcam");
     return 1;
 }
