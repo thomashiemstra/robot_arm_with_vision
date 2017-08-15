@@ -12,6 +12,7 @@
 #include <chrono>
 #include <math.h>
 
+
 #define x_comp  0
 #define y_comp  1
 #define z_comp  2
@@ -49,24 +50,15 @@ int main(void){
     cout << "is connected: " << arduino->IsConnected() << std::endl;
 
     int flip = 0;
+
     struct Pos start, stop;
-    tricks.setPos(&start,-15,25,10,0,0,0,10);
-    tricks.setPos(&stop, 15,25,10,0,0,0,10);
+    tricks.setPos(&start,-20,30,15,0,0,0,10);
+    tricks.setPos(&stop,20,25,25,0,0,0,10);
 
     tricks.setArmPos(start,flip);
+    pp.lineOO(start,stop,flip);
     tricks.wait();
-    tricks.line(start,stop,15,flip);
-    tricks.wait();
-    tricks.line(stop,start,15,flip);
-
-
-//    struct Pos start, stop;
-//    tricks.setPos(&start,-20,30,15,0,0,0,10);
-//    tricks.setPos(&stop,20,25,25,0,0,0,10);
-//
-//    tricks.setArmPos(start,flip);
-//    pp.lineOO(start,stop,flip);
-//    pp.lineOO(stop,start,flip);
+    pp.lineOO(stop,start,flip);
 
 
 //    tricks.stacking(20,flip);

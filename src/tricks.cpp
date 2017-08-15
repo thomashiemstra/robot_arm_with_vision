@@ -330,7 +330,7 @@ void Tricks::monkeySeeMonkeyDo(){
     bool getVecs = false;
     int looptieloop = 1;
     int flip = 0;
-    double w[3][3]={{0,1,0},    //the target rotation matrix R
+    double w[3][3]={{0,1,0},    //the target rotation matrix
                     {0,0,1},
                     {1,0,0}};
     Mat cameraMatrix = Mat::eye(3,3, CV_64F);

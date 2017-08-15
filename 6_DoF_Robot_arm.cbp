@@ -14,7 +14,7 @@
 				<Compiler>
 					<Add option="-march=corei7-avx" />
 					<Add option="-O2" />
-					<Add option="-std=c++11" />
+					<Add option="-std=c++14" />
 					<Add directory="include" />
 				</Compiler>
 				<Linker>

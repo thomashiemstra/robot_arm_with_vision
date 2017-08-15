@@ -30,9 +30,6 @@ class PathPlanning
         void createPointsBox(int marker, double dims[3], vector<vector<vector<double > > >& objectPoints);
         void createPointsCylinder(int marker, double dims[3], vector<vector<vector<double > > >& objectPoints);
         void rotTrans(int marker, vector<vector<vector<double > > >& objectPoints, double theta, vector<double>& trans);
-        int wait();
-        void commandArduino(double angles[7], int grip);
-        void sendStuff(int16_t *val);
         double factor(double z, double z_max, double scaling);
         void line(struct Pos start, struct Pos stop, int time, int flip, vector<vector<vector<double > > >& objectPoints, vector<int > foundMarkers);
         void createPoints(int marker, vector<vector<vector<double > > >& objectPoints);

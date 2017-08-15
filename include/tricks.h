@@ -47,9 +47,9 @@ class Tricks
 		void monkeySeeMonkeyDo();
 		void stacking(double speed, int flip);
 		int wait();
-	private:
         void sendStuff(int16_t *val);
         void commandArduino(double angles[7], int grip);
+	private:
         void msleep(long ms);
         double fixtheta(double theta);
 };

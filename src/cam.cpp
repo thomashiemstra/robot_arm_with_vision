@@ -81,12 +81,9 @@ void cam::findRotMatrixCharuco(Vec3d& baseRotation, Vec3d& posRotation, Mat&  re
         }
     }
 
-    for(i = 0; i < 3; i++)
-    {
-        for(j = 0; j < 3; j++)
-        {
-            for(k = 0; k < 3; k++)
-            {
+    for(i = 0; i < 3; i++){
+        for(j = 0; j < 3; j++){
+            for(k = 0; k < 3; k++){
                 relativeRotMatrix.at<double>(i,j) += baseRotMatrixTranspose.at<double>(i,k) * objectRotMatrix.at<double>(k,j);
             }
         }
@@ -134,7 +131,7 @@ void cam::findRelativeVectorCharuco(Vec3d& baseRotation, Vec3d& baseTranslation,
         }
     }
 }
-/* constantly outputs the camera feed and calculate the position of toFindMarker when asked */
+/* constantly outputs the camera feed and calculate the position of toFindMarker when asked, used in multi threading  */
 int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos, Mat& relativeRotMatrix, int& toFindMarker,bool &getVecs, int& condition){
     Mat frame;
     Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_4X4_50);
@@ -142,7 +139,7 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
     Ptr<aruco::Board> board = charucoboard.staticCast<aruco::Board>();
     int counter = 0;
     double new_y,old_y = 0;
-    double tempx,tempy;
+    double tempx = 0,tempy = 0;
     VideoCapture vid(0);
 
     if(!vid.isOpened()){
@@ -162,6 +159,7 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
         vector< Point2f > charucoCorners;
         vector< vector< Point2f > > markerCorners, rejectedMarkers;
         vector<int> markerIds, charucoIds;
+
         /* detect everything*/
         aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
         aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimension, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
@@ -173,8 +171,9 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
             aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[Pos1], translationVectors[Pos1], 0.08f);
         if(validPose)
             aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rvec, tvec, 0.12f);
-        /* find x,y and theta(rotation around the z-axis)*/
-        if(Pos1 != -1 && getVecs && toFindMarker >= 42){ //blocks in the field start at marker number 42
+
+        /* find the position and rotation of the toFindMarker*/
+        if(Pos1 != -1 && getVecs){
             unique_lock<mutex> locker(mu);
             findRelativeVectorCharuco(rvec, tvec, translationVectors[Pos1], relPos);
             new_y = relPos[1];
@@ -199,7 +198,7 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
             }
         }
         imshow("Webcam", frame);
-        /*make sure we wait exactly 1000/fps milliseconds */
+        /*make sure we exactly hit the target fps */
         waitKey(1); /* without this imshow shows nothing*/
         auto temp = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> fp_ms = temp - begin;
@@ -212,7 +211,7 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
     }
     return 1;
 }
-
+/* computes the relative position and rotation between 2 charuco boards */
 int cam::copyMovement(const Mat& cameraMatrix, const Mat& distanceCoefficients, vector<double>& relPos, Mat& relativeRotMatrix, bool &getVecs, int& condition){
     Mat frame;
     Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_4X4_50);
