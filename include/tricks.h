@@ -43,9 +43,6 @@ class Tricks
 		void pointToPoint(struct Pos start, struct Pos stop, double time, int flip);
 		void anglesToAngles(double startAngles[7], double stopAngles[7], double time, int flip, int grip);
 		void setPos(struct Pos* pos, double x, double y, double z, double alpha, double beta, double gamma,int grip);
-		void showOff(double speed);
-		int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter);
-		void monkeySeeMonkeyDo();
 		int wait();
         void sendStuff(int16_t *val);
         void commandArduino(double anglez[7], int grip);

@@ -29,6 +29,7 @@ using namespace std;
 
 const float arucoSquareDimension = 0.0265f; //in meters
 double angles[7] = {0};
+double tempAngles[7] = {0};
 double t[3][3]= {{0,1,0},    //the target rotation matrix R
                  {0,0,1},
                  {1,0,0}};
@@ -80,7 +81,11 @@ void Tricks::setArmPos(struct Pos Pos, int flip){
     a = Pos.alpha; b = Pos.beta; g = Pos.gamma;
     int grip = Pos.grip;
     ik.eulerMatrix(a,b,g,t);
-    ik.inverseKinematics(x,y,z,t,angles,flip);
+
+    //ik.inverseKinematicsRaw(x,y,z,t,angles,flip);
+    ik.inverseKinematicsNNRaw(x, y, z, t,tempAngles, flip);
+    ik.convertAngles(tempAngles,angles);
+
     commandArduino(angles,grip);
 }
 
@@ -100,7 +105,11 @@ void Tricks::line(struct Pos start, struct Pos stop, double speed, int flip){
         double y = start.y + 3*(stop.y - start.y)*pow(t1,2) - 2*(stop.y - start.y)*pow(t1,3);
         double z = start.z + 3*(stop.z - start.z)*pow(t1,2) - 2*(stop.z - start.z)*pow(t1,3);
         ik.eulerMatrix(start.alpha, start.beta, start.gamma,t);
-        ik.inverseKinematics(x, y, z, t,angles, flip);
+
+        //ik.inverseKinematicsRaw(x, y, z, t,tempAngles, flip);
+        ik.inverseKinematicsNNRaw(x, y, z, t,tempAngles, flip);
+        ik.convertAngles(tempAngles,angles);
+
         commandArduino(angles,start.grip);
         msleep(50);
     }
@@ -189,5 +198,3 @@ double Tricks::fixtheta(double theta){
 
         return theta;
 }
-
-

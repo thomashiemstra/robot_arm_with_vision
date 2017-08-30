@@ -12,16 +12,33 @@
 #include <algorithm>
 #include <chrono>
 #include <math.h>
+#include "doublefann.h"
 
 
-#define x_comp  0
-#define y_comp  1
-#define z_comp  2
-#define d4 13
+#define x_comp      0
+#define y_comp      1
+#define z_comp      2
+
+#define sx_comp     3
+#define sy_comp     4
+#define sz_comp     5
+
+#define ax_comp     6
+#define ay_comp     7
+#define az_comp     8
+
+#define d1  12.5   //ground to q1
+#define d6  12 //gripper to wrist
+#define a2 15.0    //q1 to q2
+#define d4 19.2  //q2 to wrist
 
 #define degtorad 0.01745329251994329576923690768488612713
 #define radtodeg 57.2957795130823208767981548141051703324
 #define pi  3.14159265358979323846264338327950288419716939937510
+
+#define PI (3.141592653589793)
+#define HALF_PI (1.570796326794897)
+#define DOF 6 /* degrees of freedom in the system */
 
 using namespace std;
 /* I feel safer globally defining these*/
@@ -46,12 +63,11 @@ struct Pos{
     int grip;
 };
 
-
 int main(void){
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << std::endl;
 
-    int flip = 0;
+    int flip = 1;
 
 //    struct Pos start, stop;
 //    tricks.setPos(&start,-20,30,15,0,0,0,10);
@@ -63,10 +79,10 @@ int main(void){
 //    pp.lineOO(stop,start,flip);
 
 
-//   rout.stacking(15,flip);
-    rout.stackingOO(15,flip);
+//    rout.stacking(15,flip);
+//    rout.stackingOO(15,flip);
 //    rout.monkeySeeMonkeyDo();
-//    rout.showOff(12);
+    rout.showOff(10);
 
     return 1;
 }

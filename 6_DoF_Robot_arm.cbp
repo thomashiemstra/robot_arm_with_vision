@@ -16,9 +16,19 @@
 					<Add option="-O2" />
 					<Add option="-std=c++14" />
 					<Add directory="include" />
+					<Add directory="C:/Program Files (x86)/FANN/include" />
 				</Compiler>
 				<Linker>
 					<Add library="../../../../../TDM-GCC-64/x86_64-w64-mingw32/lib/libopencv_world320.dll.a" />
+					<Add library="C:/Program Files (x86)/FANN/lib/libdoublefann.dll.a" />
+					<Add library="C:/Program Files (x86)/FANN/lib/libdoublefann_static.a" />
+					<Add library="C:/Program Files (x86)/FANN/lib/libfann.dll.a" />
+					<Add library="C:/Program Files (x86)/FANN/lib/libfann_static.a" />
+					<Add library="C:/Program Files (x86)/FANN/lib/libfixedfann.dll.a" />
+					<Add library="C:/Program Files (x86)/FANN/lib/libfixedfann_static.a" />
+					<Add library="C:/Program Files (x86)/FANN/lib/libfloatfann.dll.a" />
+					<Add library="C:/Program Files (x86)/FANN/lib/libfloatfann_static.a" />
+					<Add directory="C:/Program Files (x86)/FANN/bin" />
 				</Linker>
 			</Target>
 			<Target title="Release">

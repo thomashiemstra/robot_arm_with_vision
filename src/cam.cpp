@@ -209,6 +209,7 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
         std::this_thread::sleep_for(std::chrono::milliseconds(wait));
         if(condition == 0) break;
     }
+    destroyWindow("Webcam");
     return 1;
 }
 /* computes the relative position and rotation between 2 charuco boards */
@@ -290,6 +291,7 @@ int cam::copyMovement(const Mat& cameraMatrix, const Mat& distanceCoefficients, 
         std::this_thread::sleep_for(std::chrono::milliseconds(wait));
         if(condition == 0) break;
     }
+    destroyWindow("Webcam");
     return 1;
 }
 /* load the calibration matrix */

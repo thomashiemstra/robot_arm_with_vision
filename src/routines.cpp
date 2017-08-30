@@ -19,7 +19,6 @@ Routines::Routines()
     return;
 }
 
-/* I hate this function with a burning passion*/
 int Routines::returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter){
     unique_lock<mutex> locker(grabmu,defer_lock);
     if(!locker.try_lock()){
@@ -198,8 +197,8 @@ void Routines::showOff(double speed){
     struct Pos start, leftlow, rightlow, leftup, rightup;
     struct Pos start1,start2,start3;
     tricks.setPos(&start,0,25,20,0,0,0,10);
-    tricks.setPos(&leftlow,-20,30,6,0,0,0,10);
-    tricks.setPos(&rightlow,20,30,6,0,0,0,10);
+    tricks.setPos(&leftlow,-20,30,10,0,0,0,10);
+    tricks.setPos(&rightlow,20,30,10,0,0,0,10);
     tricks.setPos(&leftup,-20,30,30,0,0,0,10);
     tricks.setPos(&rightup,20,30,30,0,0,0,10);
 

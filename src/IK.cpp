@@ -6,10 +6,19 @@
 #include <time.h>
 #include<vector>
 #include <chrono>
+#include "doublefann.h"
 
 #define x_comp  0
 #define y_comp  1
 #define z_comp  2
+
+#define sx_comp     3
+#define sy_comp     4
+#define sz_comp     5
+
+#define ax_comp     6
+#define ay_comp     7
+#define az_comp     8
 
 #define d1  12.5   //ground to q1
 #define d6  12 //gripper to wrist
@@ -180,6 +189,35 @@ void IK::inverseKinematicsRaw(double x,double y,double z,double t[3][3],double a
 		angles[0] = angles[5];
 	}
 }
+
+void IK::inverseKinematicsNNRaw(double x,double y,double z,double t[3][3],double angles[7], int flip){
+    fann_type *calc;
+    fann_type pos[9];
+    /* scale the input to {-1,1} */
+    double temp = a2 + d1 + d4 + d6;
+    pos[x_comp] = x*(1.0/temp);
+    pos[y_comp] = y*(1.0/temp);
+    pos[z_comp] = z*(1.0/temp);
+    pos[sx_comp] = t[0][1];
+    pos[sy_comp] = t[1][1];
+    pos[sz_comp] = t[2][1];
+    pos[ax_comp] = t[0][2];
+    pos[ay_comp] = t[1][2];
+    pos[az_comp] = t[2][2];
+
+    struct fann *ann = fann_create_from_file("ik_double_30_30.net");;
+
+    calc = fann_run(ann, pos);
+    /* scale angles back from {-1,1} to their respective range */
+                                        /* range: */
+    angles[1] = (calc[0] + 1)*pi/2;       /* [0,2PI] */
+    angles[2] = (calc[1] + 1)*pi/2;       /* [0,2PI] */
+    angles[3] = -calc[2]*pi/2.0;        /* [PI/2,-PI/2] */
+    angles[4] = calc[3]*pi;             /* [-PI,PI] */
+    angles[5] = (calc[4] + 1)*pi/2.0;   /* [0,PI] flip is hard coded to 0 for now*/
+    angles[6] = calc[5]*pi;             /* [-PI,PI] */
+}
+
 
 void IK::convertAngles(double inangles[7], double outangles[7]){
     /* all that follows now is fixing the angles because some of the servo orientations */
