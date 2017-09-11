@@ -19,14 +19,6 @@
 #define y_comp      1
 #define z_comp      2
 
-#define sx_comp     3
-#define sy_comp     4
-#define sz_comp     5
-
-#define ax_comp     6
-#define ay_comp     7
-#define az_comp     8
-
 #define d1  12.5   //ground to q1
 #define d6  12 //gripper to wrist
 #define a2 15.0    //q1 to q2
@@ -65,15 +57,16 @@ struct Pos{
 
 int main(void){
     arduino = new Serial(portName);
-    cout << "is connected: " << arduino->IsConnected() << std::endl;
+    cout << "is connected: " << arduino->IsConnected() << endl;
 
-    int flip = 1;
-
-//    struct Pos start, stop;
+//    int flip = 1;
+//
+//    struct Pos start, stop, test;
 //    tricks.setPos(&start,-20,30,15,0,0,0,10);
 //    tricks.setPos(&stop,20,25,25,0,0,0,10);
+//    tricks.setPos(&test,0,30,15,0,0,0,10);
 
-//    tricks.setArmPos(start,flip);
+//    tricks.setArmPos(test,flip);
 //    pp.lineOO(start,stop,flip);
 //    tricks.wait();
 //    pp.lineOO(stop,start,flip);
@@ -83,6 +76,11 @@ int main(void){
 //    rout.stackingOO(15,flip);
 //    rout.monkeySeeMonkeyDo();
     rout.showOff(10);
+//    ik.inverseKinematicsRaw(0,20,10,w,angles1,0);
+//    ik.forwardKinematics(angles1,jointPos);
+
+
+
 
     return 1;
 }

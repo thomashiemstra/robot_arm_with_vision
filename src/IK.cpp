@@ -24,9 +24,10 @@
 #define d6  12 //gripper to wrist
 #define a2 15.0    //q1 to q2
 #define d4 19.2  //q2 to wrist
-#define pi  3.14159265358979323846264338327950288419716939937510
-#define degtorad 0.01745329251994329576923690768488612713
-#define radtodeg 57.2957795130823208767981548141051703324
+#define pi  3.141592653589793238462
+#define half_pi 1.570796326794897
+#define degtorad 0.0174532925199
+#define radtodeg 57.295779513082
 
 using namespace::std;
 
@@ -205,19 +206,57 @@ void IK::inverseKinematicsNNRaw(double x,double y,double z,double t[3][3],double
     pos[ay_comp] = t[1][2];
     pos[az_comp] = t[2][2];
 
-    struct fann *ann = fann_create_from_file("ik_double_30_30.net");;
+    struct fann *ann = fann_create_from_file("ik_float_40_40.net");;
 
     calc = fann_run(ann, pos);
     /* scale angles back from {-1,1} to their respective range */
                                         /* range: */
-    angles[1] = (calc[0] + 1)*pi/2;       /* [0,2PI] */
-    angles[2] = (calc[1] + 1)*pi/2;       /* [0,2PI] */
+    angles[1] = (calc[0] + 1)*pi/2;       /* [0,PI] */
+    angles[2] = (calc[1] + 1)*pi/2;       /* [0,PI] */
     angles[3] = -calc[2]*pi/2.0;        /* [PI/2,-PI/2] */
     angles[4] = calc[3]*pi;             /* [-PI,PI] */
     angles[5] = (calc[4] + 1)*pi/2.0;   /* [0,PI] flip is hard coded to 0 for now*/
     angles[6] = calc[5]*pi;             /* [-PI,PI] */
-}
 
+    fann_destroy(ann);
+}
+/* anglesInternal has range (-1,1) angles is as normal, this algorithm needs the current angles of the robot as input */
+void IK::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3], double anglesInternal[6] ,double angles[7]){
+    fann_type *calc;
+    fann_type pos[15];
+    /* scale the input to {-1,1} */
+    double temp = a2 + d1 + d4 + d6;
+    pos[x_comp] = x*(1.0/temp);
+    pos[y_comp] = y*(1.0/temp);
+    pos[z_comp] = z*(1.0/temp);
+    pos[sx_comp] = t[0][1];
+    pos[sy_comp] = t[1][1];
+    pos[sz_comp] = t[2][1];
+    pos[ax_comp] = t[0][2];
+    pos[ay_comp] = t[1][2];
+    pos[az_comp] = t[2][2];
+    memcpy(pos+9, anglesInternal, sizeof(double)*6);
+
+    struct fann *ann = fann_create_from_file("ik_float_delta_20_20.net");;
+
+    calc = fann_run(ann, pos);
+    /* rescale the output to (-2,2) */
+    anglesInternal[0] += calc[0]*2;
+    anglesInternal[1] += calc[1]*2;
+    anglesInternal[2] += calc[2]*2;
+    anglesInternal[3] += calc[3]*2;
+    anglesInternal[4] += calc[4]*2;
+    anglesInternal[5] += calc[5]*2;
+
+    angles[1] = (anglesInternal[0] + 1)*half_pi;
+    angles[2] = (anglesInternal[1] + 1)*half_pi;
+    angles[3] = -anglesInternal[2]*half_pi;
+    angles[4] = anglesInternal[3]*pi;
+    angles[5] = (anglesInternal[4] + 1)*half_pi;
+    angles[6] = anglesInternal[5]*pi;
+
+    fann_destroy(ann);
+}
 
 void IK::convertAngles(double inangles[7], double outangles[7]){
     /* all that follows now is fixing the angles because some of the servo orientations */

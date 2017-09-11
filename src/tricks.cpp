@@ -82,7 +82,10 @@ void Tricks::setArmPos(struct Pos Pos, int flip){
     int grip = Pos.grip;
     ik.eulerMatrix(a,b,g,t);
 
+    double anglesInternal[6] = {0,0,0,0,-1,0};
+
     //ik.inverseKinematicsRaw(x,y,z,t,angles,flip);
+    //ik.inverseKinematicsNNRawDelta(x,y,z,t,anglesInternal,tempAngles);
     ik.inverseKinematicsNNRaw(x, y, z, t,tempAngles, flip);
     ik.convertAngles(tempAngles,angles);
 
@@ -98,6 +101,7 @@ void Tricks::line(struct Pos start, struct Pos stop, double speed, int flip){
     double r = sqrt(dx*dx+dy*dy+dz*dz);
     double time = r/speed; /* speed in cm/second, time in seconds*/
     int steps = ceil(time*20);
+    double anglesInternal[6] = {0,0,0,0,-1,0};
 
     for(int k=0; k<steps; k++){
         double t1 = (double)k/steps; /* t1 has to go from 0 to 1*/
@@ -107,6 +111,7 @@ void Tricks::line(struct Pos start, struct Pos stop, double speed, int flip){
         ik.eulerMatrix(start.alpha, start.beta, start.gamma,t);
 
         //ik.inverseKinematicsRaw(x, y, z, t,tempAngles, flip);
+        //ik.inverseKinematicsNNRawDelta(x,y,z,t,anglesInternal,tempAngles);
         ik.inverseKinematicsNNRaw(x, y, z, t,tempAngles, flip);
         ik.convertAngles(tempAngles,angles);
 
@@ -133,7 +138,7 @@ void Tricks::pointToPoint(struct Pos start, struct Pos stop, double time, int fl
     ik.eulerMatrix(stop.alpha, stop.beta, stop.gamma,t);
     ik.inverseKinematics(stop.x, stop.y, stop.z, t,stopAngles, flip);
 
-    int steps = ceil(time*20); /* maybe steps should scale not with time but with path length, dunno */
+    int steps = ceil(time*20); /* maybe steps should scale not with time but with path length */
 
     for(int k=0; k<steps; k++){
         double t = (double)k/steps; /* t has to go from 0 to 1*/
