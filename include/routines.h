@@ -41,6 +41,7 @@ class Routines
         void stacking(double speed, int flip);
         void stackingOO(double speed, int flip);
         void showOff(double speed);
+        void showOffNN(double speed);
         void monkeySeeMonkeyDo();
         int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter);
         int returnBlockOO(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter, vector<vector<vector<double > > >& objectPoints, vector<int >& foundMarkers);

@@ -82,11 +82,21 @@ void Tricks::setArmPos(struct Pos Pos, int flip){
     int grip = Pos.grip;
     ik.eulerMatrix(a,b,g,t);
 
-    double anglesInternal[6] = {0,0,0,0,-1,0};
+    ik.inverseKinematicsRaw(x, y, z, t,tempAngles, flip);
+    ik.convertAngles(tempAngles,angles);
 
-    //ik.inverseKinematicsRaw(x,y,z,t,angles,flip);
-    //ik.inverseKinematicsNNRawDelta(x,y,z,t,anglesInternal,tempAngles);
-    ik.inverseKinematicsNNRaw(x, y, z, t,tempAngles, flip);
+    commandArduino(angles,grip);
+}
+
+void Tricks::setArmPosNN(struct Pos Pos, int flip, double anglesInternal[6]){
+    double x,y,z,a,b,g;
+    x = Pos.x; y = Pos.y;  z = Pos.z;
+    a = Pos.alpha; b = Pos.beta; g = Pos.gamma;
+    int grip = Pos.grip;
+    ik.eulerMatrix(a,b,g,t);
+
+    //ik.inverseKinematicsRaw(x,y,z,t,tempAngles,flip);
+    ik.inverseKinematicsNNRawDelta(x,y,z,t,anglesInternal,tempAngles);
     ik.convertAngles(tempAngles,angles);
 
     commandArduino(angles,grip);
@@ -101,7 +111,39 @@ void Tricks::line(struct Pos start, struct Pos stop, double speed, int flip){
     double r = sqrt(dx*dx+dy*dy+dz*dz);
     double time = r/speed; /* speed in cm/second, time in seconds*/
     int steps = ceil(time*20);
-    double anglesInternal[6] = {0,0,0,0,-1,0};
+
+
+    for(int k=0; k<steps; k++){
+        double t1 = (double)k/steps; /* t1 has to go from 0 to 1*/
+        double x = start.x + 3*(stop.x - start.x)*pow(t1,2) - 2*(stop.x - start.x)*pow(t1,3);
+        double y = start.y + 3*(stop.y - start.y)*pow(t1,2) - 2*(stop.y - start.y)*pow(t1,3);
+        double z = start.z + 3*(stop.z - start.z)*pow(t1,2) - 2*(stop.z - start.z)*pow(t1,3);
+        ik.eulerMatrix(start.alpha, start.beta, start.gamma,t);
+
+        ik.inverseKinematicsRaw(x, y, z, t,tempAngles, flip);
+        ik.convertAngles(tempAngles,angles);
+
+        commandArduino(angles,start.grip);
+        msleep(50);
+    }
+    if(abs(dgrip) > 0){
+        for (int j=0;j<20;j++){
+            int temp = ceil(start.grip + (j/20)*dgrip);
+            commandArduino(angles,temp);
+            msleep(20);
+        }
+    }
+}
+
+void Tricks::lineNN(struct Pos start, struct Pos stop, double speed, int flip, double anglesInternal[6]){
+
+    int dgrip = stop.grip - start.grip;
+    double dx = stop.x - start.x;
+    double dy = stop.y - start.y;
+    double dz = stop.z - start.z;
+    double r = sqrt(dx*dx+dy*dy+dz*dz);
+    double time = r/speed; /* speed in cm/second, time in seconds*/
+    int steps = ceil(time*20);
 
     for(int k=0; k<steps; k++){
         double t1 = (double)k/steps; /* t1 has to go from 0 to 1*/
@@ -111,8 +153,7 @@ void Tricks::line(struct Pos start, struct Pos stop, double speed, int flip){
         ik.eulerMatrix(start.alpha, start.beta, start.gamma,t);
 
         //ik.inverseKinematicsRaw(x, y, z, t,tempAngles, flip);
-        //ik.inverseKinematicsNNRawDelta(x,y,z,t,anglesInternal,tempAngles);
-        ik.inverseKinematicsNNRaw(x, y, z, t,tempAngles, flip);
+        ik.inverseKinematicsNNRawDelta(x,y,z,t,anglesInternal,tempAngles);
         ik.convertAngles(tempAngles,angles);
 
         commandArduino(angles,start.grip);

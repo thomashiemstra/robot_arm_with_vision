@@ -243,6 +243,39 @@ void Routines::showOff(double speed){
     tricks.line(start3,start,speed,flip);
 }
 
+void Routines::showOffNN(double speed){
+
+    int flip = 1;
+    struct Pos start, leftlow, rightlow, leftup, rightup;
+    struct Pos start1,start2,start3;
+    double anglesInternal[6] = {0,0,0,0,-1,0};
+
+    tricks.setPos(&start,0,25,20,0,0,0,10);
+    tricks.setPos(&leftlow,-20,30,10,0,0,0,10);
+    tricks.setPos(&rightlow,20,30,10,0,0,0,10);
+    tricks.setPos(&leftup,-20,30,30,0,0,0,10);
+    tricks.setPos(&rightup,20,30,30,0,0,0,10);
+
+    tricks.setArmPosNN(start,flip,anglesInternal);
+    tricks.wait();
+    tricks.lineNN(start,leftlow,speed,flip,anglesInternal);
+    tricks.lineNN(leftlow,leftup,speed,flip,anglesInternal);
+    tricks.msleep(500);
+    tricks.lineNN(leftup,rightup,speed,flip,anglesInternal);
+    tricks.msleep(500);
+    tricks.lineNN(rightup,rightlow,speed,flip,anglesInternal);
+    tricks.lineNN(rightlow,leftlow,speed,flip,anglesInternal);
+    tricks.lineNN(leftlow,start,speed,flip,anglesInternal);
+
+    tricks.setPos(&start1,0,25,20,pi/2,0,0,10);
+    tricks.setPos(&start2,0,25,20,-pi/2,0,0,10);
+    tricks.setPos(&start3,0,25,20,pi/2,0,0,10);
+    tricks.lineNN(start,start1,speed,flip,anglesInternal);
+    tricks.lineNN(start1,start2,speed,flip,anglesInternal);
+    tricks.lineNN(start2,start3,speed,flip,anglesInternal);
+    tricks.lineNN(start3,start,speed,flip,anglesInternal);
+}
+
 void Routines::monkeySeeMonkeyDo(){
     double x,y,z;
     vector<double> relPos1(3);

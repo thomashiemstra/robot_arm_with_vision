@@ -206,7 +206,7 @@ void IK::inverseKinematicsNNRaw(double x,double y,double z,double t[3][3],double
     pos[ay_comp] = t[1][2];
     pos[az_comp] = t[2][2];
 
-    struct fann *ann = fann_create_from_file("ik_float_40_40.net");;
+    struct fann *ann = fann_create_from_file("ik_float_40_40.net");
 
     calc = fann_run(ann, pos);
     /* scale angles back from {-1,1} to their respective range */
@@ -222,6 +222,9 @@ void IK::inverseKinematicsNNRaw(double x,double y,double z,double t[3][3],double
 }
 /* anglesInternal has range (-1,1) angles is as normal, this algorithm needs the current angles of the robot as input */
 void IK::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3], double anglesInternal[6] ,double angles[7]){
+
+    struct fann *ann = fann_create_from_file("ik_float_delta_40_40.net");
+
     fann_type *calc;
     fann_type pos[15];
     /* scale the input to {-1,1} */
@@ -235,18 +238,15 @@ void IK::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3], 
     pos[ax_comp] = t[0][2];
     pos[ay_comp] = t[1][2];
     pos[az_comp] = t[2][2];
-    memcpy(pos+9, anglesInternal, sizeof(double)*6);
 
-    struct fann *ann = fann_create_from_file("ik_float_delta_20_20.net");;
-
-    calc = fann_run(ann, pos);
-    /* rescale the output to (-2,2) */
-    anglesInternal[0] += calc[0]*2;
-    anglesInternal[1] += calc[1]*2;
-    anglesInternal[2] += calc[2]*2;
-    anglesInternal[3] += calc[3]*2;
-    anglesInternal[4] += calc[4]*2;
-    anglesInternal[5] += calc[5]*2;
+    /* run the network a few times to (hopefully) improve the results */
+    for(int j=0; j<3; j++){
+        memcpy(pos+9, anglesInternal, sizeof(double)*6);
+        calc = fann_run(ann, pos);
+        /* rescale the output to (-2,2) */
+        for(int i = 0; i < 6; i++)
+            anglesInternal[i] += calc[i]*2;
+    }
 
     angles[1] = (anglesInternal[0] + 1)*half_pi;
     angles[2] = (anglesInternal[1] + 1)*half_pi;
