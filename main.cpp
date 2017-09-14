@@ -110,11 +110,11 @@ int main(void){
 //    rout.stacking(15,flip);
 //    rout.stackingOO(15,flip);
 //    rout.monkeySeeMonkeyDo();
-    rout.showOffNN(10);
+//    rout.showOffNN(10);
 //    ik.inverseKinematicsRaw(0,20,10,w,angles1,0);
 //    ik.forwardKinematics(angles1,jointPos);
 
-/*
+
     double anglesInternal[6] = {0,0,0,0,-1,0};
     double angles[7];
     double anglesNN[7];
@@ -146,6 +146,6 @@ int main(void){
         }
     tricks.wait();
     }
-*/
+
     return 1;
 }

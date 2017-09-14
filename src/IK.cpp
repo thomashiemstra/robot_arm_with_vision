@@ -223,7 +223,7 @@ void IK::inverseKinematicsNNRaw(double x,double y,double z,double t[3][3],double
 /* anglesInternal has range (-1,1) angles is as normal, this algorithm needs the current angles of the robot as input */
 void IK::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3], double anglesInternal[6] ,double angles[7]){
 
-    struct fann *ann = fann_create_from_file("ik_float_delta_40_40.net");
+    struct fann *ann = fann_create_from_file("ik_float_20_20_20_20_20_20_20_20.net");
 
     fann_type *calc;
     fann_type pos[15];
