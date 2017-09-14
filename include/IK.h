@@ -22,6 +22,8 @@ class IK
         void forwardKinematics(double angles[7], double jointPos[7][3]);
         void jacobianTransposeOnF(double F_world[7][3], double F_joint[7], double angles[7]);
 	private:
+	    void forwardKinematicsOrientation(double *angles, double *pos);
+	    void forwardKinematicsPos(double *angles, double *pos);
 
 
 };

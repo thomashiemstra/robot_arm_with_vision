@@ -1,5 +1,6 @@
 #include "Routines.h"
-#define pi  3.14159265358979323846264338327950288419716939937510
+#define pi  3.141592653589
+#define half_pi 1.570796326794897
 #define degtorad 0.01745329251994329576923690768488612713
 #define radtodeg 57.2957795130823208767981548141051703324
 
@@ -206,7 +207,7 @@ void Routines::showOff(double speed){
     tricks.wait();
     tricks.line(start,leftlow,speed,flip);
     tricks.line(leftlow,leftup,speed,flip);
-    flip = 1;
+    flip = 0;
     tricks.setArmPos(leftup,flip);
     tricks.msleep(500);
     tricks.line(leftup,rightup,speed,flip);
@@ -224,23 +225,29 @@ void Routines::showOff(double speed){
     tricks.line(start1,start2,speed,flip);
     tricks.line(start2,start3,speed,flip);
 
-    /* broken */
-    //double dummy = 70;
-    //int j;
-//    for (j=0; j<=dummy; j++){
-//       ik.eulerMatrix(cos((j/dummy)*pi)*pi/2,0,sin((j/dummy)*pi)*pi/2,t);
-//       ik.inverseKinematics(0,25,20,t,angles,flip);
-//       tricks.commandArduino(angles,10);
-//       tricks.msleep(50);
-//   }
-//
-//   for (j=0; j<=dummy; j++){
-//       ik.eulerMatrix(-cos((j/dummy)*pi)*pi/2,0,-sin((j/dummy)*pi)*pi/2,t);
-//       ik.inverseKinematics(0,25,20,t,angles,flip);
-//       tricks.commandArduino(angles,10);
-//       tricks.msleep(50);
-//    }
-    tricks.line(start3,start,speed,flip);
+    double dummy = 40;
+
+    for (int j=0; j<=dummy; j++){
+       ik.eulerMatrix( sin((j/(float)dummy)*half_pi)*half_pi,0,0,t);
+       ik.inverseKinematics(0,25,20,t,angles,flip);
+       tricks.commandArduino(angles,10);
+       tricks.msleep(50);
+    }
+
+    for (int j=dummy; j>=-dummy; j--){
+       ik.eulerMatrix( sin((j/(float)dummy)*half_pi)*half_pi,0,0,t);
+       ik.inverseKinematics(0,25,20,t,angles,flip);
+       tricks.commandArduino(angles,10);
+       tricks.msleep(50);
+    }
+
+    for (int j=-dummy; j<=0; j++){
+       ik.eulerMatrix( sin((j/(float)dummy)*half_pi)*half_pi,0,0,t);
+       ik.inverseKinematics(0,25,20,t,angles,flip);
+       tricks.commandArduino(angles,10);
+       tricks.msleep(50);
+   }
+
 }
 
 void Routines::showOffNN(double speed){
@@ -249,6 +256,8 @@ void Routines::showOffNN(double speed){
     struct Pos start, leftlow, rightlow, leftup, rightup;
     struct Pos start1,start2,start3;
     double anglesInternal[6] = {0,0,0,0,-1,0};
+    double rawAngles[7];
+    double arduinoAngles[7];
 
     tricks.setPos(&start,0,25,20,0,0,0,10);
     tricks.setPos(&leftlow,-20,30,10,0,0,0,10);
@@ -267,13 +276,31 @@ void Routines::showOffNN(double speed){
     tricks.lineNN(rightlow,leftlow,speed,flip,anglesInternal);
     tricks.lineNN(leftlow,start,speed,flip,anglesInternal);
 
-    tricks.setPos(&start1,0,25,20,pi/2,0,0,10);
-    tricks.setPos(&start2,0,25,20,-pi/2,0,0,10);
-    tricks.setPos(&start3,0,25,20,pi/2,0,0,10);
-    tricks.lineNN(start,start1,speed,flip,anglesInternal);
-    tricks.lineNN(start1,start2,speed,flip,anglesInternal);
-    tricks.lineNN(start2,start3,speed,flip,anglesInternal);
-    tricks.lineNN(start3,start,speed,flip,anglesInternal);
+    double dummy = 40;
+
+    for (int j=0; j<=dummy; j++){
+       ik.eulerMatrix( sin((j/(float)dummy)*half_pi)*half_pi,0,0,t);
+       ik.inverseKinematicsNNRawDelta(0,25,20,t,anglesInternal,rawAngles);
+       ik.convertAngles(rawAngles,arduinoAngles);
+       tricks.commandArduino(arduinoAngles,10);
+       tricks.msleep(50);
+    }
+
+    for (int j=dummy; j>=-dummy; j--){
+       ik.eulerMatrix( sin((j/(float)dummy)*half_pi)*half_pi,0,0,t);
+       ik.inverseKinematicsNNRawDelta(0,25,20,t,anglesInternal,rawAngles);
+       ik.convertAngles(rawAngles,arduinoAngles);
+       tricks.commandArduino(arduinoAngles,10);
+       tricks.msleep(50);
+    }
+
+    for (int j=-dummy; j<=0; j++){
+       ik.eulerMatrix( sin((j/(float)dummy)*half_pi)*half_pi,0,0,t);
+       ik.inverseKinematicsNNRawDelta(0,25,20,t,anglesInternal,rawAngles);
+       ik.convertAngles(rawAngles,arduinoAngles);
+       tricks.commandArduino(arduinoAngles,10);
+       tricks.msleep(50);
+   }
 }
 
 void Routines::monkeySeeMonkeyDo(){

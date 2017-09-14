@@ -220,13 +220,66 @@ void IK::inverseKinematicsNNRaw(double x,double y,double z,double t[3][3],double
 
     fann_destroy(ann);
 }
+
+void IK::forwardKinematicsPos(double *angles, double *pos){
+    double q1 =  (angles[0] + 1)*half_pi;           /* [0,pi] */
+    double q2 =  (angles[1] + 1)*half_pi;           /* [0,pi] */
+    double q3 =  -(angles[2] + 1)*half_pi + half_pi;/* [pi/2,-pi/2] */
+    double q4 =  angles[3]*pi;                      /* [-pi,pi] */
+    double q5 = (angles[4] + 1)*half_pi;            /* [0,pi] */                  /* [-pi,pi] */
+    double temp = a2 + d1 + d4 + d6;
+
+    pos[x_comp] = (1.0/temp)*(d6*sin(q1)*sin(q4)*sin(q5) + cos(q1)*(a2*cos(q2) + (d4 + d6*cos(q5))*sin(q2 + q3) + d6*cos(q2 + q3)*cos(q4)*sin(q5)));
+    pos[y_comp] = (1.0/temp)*(cos(q3)*(d4 + d6*cos(q5))*sin(q1)*sin(q2) - d6*(cos(q4)*sin(q1)*sin(q2)*sin(q3) + cos(q1)*sin(q4))*sin(q5) + cos(q2)*sin(q1)*(a2 + (d4 + d6*cos(q5))*sin(q3) + d6*cos(q3)*cos(q4)*sin(q5)));
+    pos[z_comp] = (1.0/temp)*(d1 - cos(q2 + q3)*(d4 + d6*cos(q5)) + a2*sin(q2) + d6*cos(q4)*sin(q2 + q3)*sin(q5));
+}
+
+void IK::forwardKinematicsOrientation(double *angles, double *pos){
+    double q1 =  (angles[0] + 1)*half_pi;           /* [0,pi] */
+    double q2 =  (angles[1] + 1)*half_pi;           /* [0,pi] */
+    double q3 =  -(angles[2] + 1)*half_pi + half_pi;/* [pi/2,-pi/2] */
+    double q4 =  angles[3]*pi;                      /* [-pi,pi] */
+    double q5 = (angles[4] + 1)*half_pi;            /* [0,pi] */
+    double q6 = angles[5]*pi;                       /* [-pi,pi] */
+
+    double sx = cos(q6)*(cos(q4)*sin(q1) - cos(q1)*cos(q2 + q3)*sin(q4)) - (cos(q5)*sin(q1)*sin(q4) + cos(q1)*(cos(q2 + q3)*cos(q4)*cos(q5) - sin(q2 + q3)*sin(q5)))*sin(q6);
+    double sy = cos(q1)*(-cos(q4)*cos(q6) + cos(q5)*sin(q4)*sin(q6)) - sin(q1)*(-sin(q2 + q3)*sin(q5)*sin(q6) + cos(q2 + q3)*(cos(q6)*sin(q4) + cos(q4)*sin(q5)*sin(q6)));
+    double sz = -cos(q6)*sin(q2 + q3)*sin(q4) - (cos(q4)*cos(q5)*sin(q2 + q3) + cos(q2 + q3)*sin(q5))*sin(q6);
+    double ax = sin(q1)*sin(q4)*sin(q5) + cos(q1)*(cos(q5)*sin(q2 + q3) + cos(q2 + q3)*cos(q4)*sin(q5));
+    double ay = cos(q5)*sin(q1)*sin(q2 + q3) + (cos(q2 + q3)*cos(q4)*sin(q1) - cos(q1)*sin(q4))*sin(q5);
+    double az = -cos(q2 + q3)*cos(q5) + cos(q4)*sin(q2 + q3)*sin(q5);
+
+    pos[0] = sx;
+    pos[1] = sy;
+    pos[2] = sz;
+    pos[3] = ax;
+    pos[4] = ay;
+    pos[5] = az;
+}
+
 /* anglesInternal has range (-1,1) angles is as normal, this algorithm needs the current angles of the robot as input */
 void IK::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3], double anglesInternal[6] ,double angles[7]){
 
     struct fann *ann = fann_create_from_file("ik_float_20_20_20_20_20_20_20_20.net");
+    struct fann *ann_orientation = fann_create_from_file("ik_float_orientation_20_20_20_20.net");
+    struct fann *ann_position = fann_create_from_file("ik_float_position_20_20_20_20.net");
 
-    fann_type *calc;
-    fann_type pos[15];
+    double *calc;
+    double *calcPos;
+    double *calcOrientation;
+    calc = (double *)malloc(sizeof(double)*6);
+    calcPos = (double *)malloc(sizeof(double)*6);
+    calcOrientation = (double *)malloc(sizeof(double)*6);
+
+    double pos[15];
+    double tempPos[3];
+    double posError[3];
+    double posInput[9];
+    double tempOrientation[6];
+    double orientationError[6];
+    double orientationInput[12];
+
+
     /* scale the input to {-1,1} */
     double temp = a2 + d1 + d4 + d6;
     pos[x_comp] = x*(1.0/temp);
@@ -240,12 +293,39 @@ void IK::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3], 
     pos[az_comp] = t[2][2];
 
     /* run the network a few times to (hopefully) improve the results */
-    for(int j=0; j<3; j++){
+    for(int j=0; j<2; j++){
         memcpy(pos+9, anglesInternal, sizeof(double)*6);
         calc = fann_run(ann, pos);
         /* rescale the output to (-2,2) */
         for(int i = 0; i < 6; i++)
             anglesInternal[i] += calc[i]*2;
+    }
+
+    /* run the network on the position and orientation error */
+    for(int j=0; j<3; j++){
+        /* update angles using the position error */
+        forwardKinematicsPos(anglesInternal, tempPos);
+        for(int i=0; i<3; i++)
+            posError[i] = pos[i] - tempPos[i];
+        memcpy(posInput,posError,sizeof(double)*3);
+        memcpy(posInput + 3,anglesInternal,sizeof(double)*6);
+
+        calcPos = fann_run(ann_position, posInput);
+        for(int i = 0; i < 6; i++)
+            anglesInternal[i] += calcPos[i]/4.0;
+
+        /* update angles using the orientation error */
+        forwardKinematicsOrientation(anglesInternal, tempOrientation);
+
+        for(int i=0; i<6; i++)
+            orientationError[i] = pos[i+3] - tempOrientation[i];
+
+        memcpy(orientationInput,orientationError,sizeof(double)*6);
+        memcpy(orientationInput + 6,anglesInternal,sizeof(double)*6);
+
+        calcOrientation = fann_run(ann_orientation, orientationInput);
+        for(int i = 0; i < 6; i++)
+            anglesInternal[i] += calcOrientation[i]/4.0;
     }
 
     angles[1] = (anglesInternal[0] + 1)*half_pi;
@@ -255,7 +335,8 @@ void IK::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3], 
     angles[5] = (anglesInternal[4] + 1)*half_pi;
     angles[6] = anglesInternal[5]*pi;
 
-    fann_destroy(ann);
+    fann_destroy(ann); fann_destroy(ann_orientation); fann_destroy(ann_position);
+    free(calc); free(calcPos); free(calcOrientation);
 }
 
 void IK::convertAngles(double inangles[7], double outangles[7]){
