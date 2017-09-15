@@ -14,7 +14,6 @@
 #include <math.h>
 #include "doublefann.h"
 
-
 #define x_comp      0
 #define y_comp      1
 #define z_comp      2
@@ -90,63 +89,110 @@ void forwardKinematics(double *angles, double *pos){
     pos[az_comp] = az;
 }
 
+void generateData(){
+    double anglesInternal[6] = {0,0,0,0,-1,0};
+    double angles[7];
+    double anglesNN[7];
+    double x[100],y[100],z[100],t;
+    double r = 10.0;
+
+    FILE *file;
+    char data[1024];
+    sprintf(data, "data_analysis/angles_data.dat");
+    file = fopen(data,"wb");
+
+    for(int i = 0; i < 100; i++){
+        t = i/100.0;
+
+        y[i] = 30;
+        x[i] = r*sin(2*pi*t);
+        z[i] = r*cos(2*pi*t) + 15;
+
+        ik.inverseKinematicsNNRawDelta(x[i],y[i],z[i],w,anglesInternal,anglesNN);
+        ik.inverseKinematicsRaw(x[i],y[i],z[i],w,angles,0);
+
+        fprintf(file,"%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n",t,angles[1],anglesNN[1],angles[2],anglesNN[2],angles[3],anglesNN[3],angles[4],anglesNN[4],angles[5],anglesNN[5],angles[6],anglesNN[6]);
+    }
+    fclose(file);
+}
+
+void compareTime(){
+    std::random_device rd;
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937 gen(seed);
+    std::uniform_real_distribution<> dis(-1, 1);
+
+    double angles[7];
+    double anglesInternal[6] = {0,0,0,0,-1,0};
+
+    double x,y,z;
+
+    auto begin = std::chrono::high_resolution_clock::now();
+    for(int i=0; i<1000; i++){
+        x = dis(gen)*20;
+        y  = (dis(gen)+1)*10 + 15;
+        z = (dis(gen)+1)*20;
+        //ik.inverseKinematicsRaw(x,y,z,w,angles,1);
+        ik.inverseKinematicsNNRawDelta(x,y,z,w,anglesInternal,angles);
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end-begin).count();
+    cout << "1.000 calcs took " << time << "ms" << endl;
+
+}
+
+void compareAngles(double x, double y, double z){
+    double anglesInternal[6] = {0,0,0,0,-1,0};
+    double angles[7];
+    double anglesNN[7];
+    double pos[9];
+    double temp = a2 + d1 + d4 + d6;
+
+    for(int j=0; j<5; j++){
+        ik.inverseKinematicsNNRawDelta(x,y,z,w,anglesInternal,anglesNN);
+        ik.inverseKinematicsRaw(x,y,z,w,angles,0);
+
+        forwardKinematics(anglesInternal,pos);
+
+        for(int i=0; i<3; i++)
+            cout << pos[i]*temp << endl;
+
+        cout << "_______________" << endl;
+
+        for(int i=3; i<9; i++)
+            cout << pos[i] << endl;
+
+        cout << "_______________" << endl;
+
+        for(int i=1; i<7; i++){
+            if(abs(angles[i]) < 0.1 )
+                angles[i] =0;
+            if(abs(anglesNN[i]) < 0.1)
+                anglesNN[i] = 0;
+            cout << angles[i]*radtodeg << "   " << anglesNN[i]*radtodeg << endl;
+        }
+    tricks.wait();
+    }
+
+}
+
+
+
 int main(void){
-    arduino = new Serial(portName);
-    cout << "is connected: " << arduino->IsConnected() << endl;
+//    arduino = new Serial(portName);
+//    cout << "is connected: " << arduino->IsConnected() << endl;
+
+//    ik.inverseKinematicsNNRawDelta(0,30,20,w,anglesInternal,angles);
 
 //    int flip = 1;
-//
-//    struct Pos start, stop, test;
-//    tricks.setPos(&start,-20,30,15,0,0,0,10);
-//    tricks.setPos(&stop,20,25,25,0,0,0,10);
-//    tricks.setPos(&test,0,30,15,0,0,0,10);
-
-//    tricks.setArmPos(test,flip);
-//    pp.lineOO(start,stop,flip);
-//    tricks.wait();
-//    pp.lineOO(stop,start,flip);
-
 
 //    rout.stacking(15,flip);
 //    rout.stackingOO(15,flip);
 //    rout.monkeySeeMonkeyDo();
-    rout.showOff(15);
-    rout.showOffNN(15);
+//    rout.showOff(15);
+//    rout.showOffNN(15);
 
-//    ik.inverseKinematicsRaw(0,20,10,w,angles1,0);
-//    ik.forwardKinematics(angles1,jointPos);
+//    generateData();
 
-//    double anglesInternal[6] = {0,0,0,0,-1,0};
-//    double angles[7];
-//    double anglesNN[7];
-//    double pos[9];
-//    double temp = a2 + d1 + d4 + d6;
-//
-//    for(int j=0; j<5; j++){
-//        ik.inverseKinematicsNNRawDelta(5,20,10,w,anglesInternal,anglesNN);
-//        ik.inverseKinematicsRaw(5,20,10,w,angles,0);
-//
-//        forwardKinematics(anglesInternal,pos);
-//
-//        for(int i=0; i<3; i++)
-//            cout << pos[i]*temp << endl;
-//
-//        cout << "_______________" << endl;
-//
-//        for(int i=3; i<9; i++)
-//            cout << pos[i] << endl;
-//
-//        cout << "_______________" << endl;
-//
-//        for(int i=1; i<7; i++){
-//            if(abs(angles[i]) < 0.1 )
-//                angles[i] =0;
-//            if(abs(anglesNN[i]) < 0.1)
-//                anglesNN[i] = 0;
-//            cout << angles[i]*radtodeg << "   " << anglesNN[i]*radtodeg << endl;
-//        }
-//    tricks.wait();
-//    }
-
-    return 1;
+    return 0;
 }

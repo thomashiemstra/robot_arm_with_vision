@@ -1,8 +1,8 @@
 #include "Routines.h"
 #define pi  3.141592653589
 #define half_pi 1.570796326794897
-#define degtorad 0.01745329251994329576923690768488612713
-#define radtodeg 57.2957795130823208767981548141051703324
+#define degtorad 0.0174532925199432957
+#define radtodeg 57.295779513082320876
 
 using namespace cv;
 using namespace std;
@@ -210,7 +210,7 @@ void Routines::showOff(double speed){
     flip = 0;
     tricks.setArmPos(leftup,flip);
     tricks.msleep(500);
-    tricks.line(leftup,rightup,speed,flip);
+    tricks.line(leftup,rightup,speed/2,flip);
     flip = 0;
     tricks.setArmPos(rightup,flip);
     tricks.msleep(500);
@@ -254,7 +254,6 @@ void Routines::showOffNN(double speed){
 
     int flip = 1;
     struct Pos start, leftlow, rightlow, leftup, rightup;
-    struct Pos start1,start2,start3;
     double anglesInternal[6] = {0,0,0,0,-1,0};
     double rawAngles[7];
     double arduinoAngles[7];
@@ -270,7 +269,7 @@ void Routines::showOffNN(double speed){
     tricks.lineNN(start,leftlow,speed,flip,anglesInternal);
     tricks.lineNN(leftlow,leftup,speed,flip,anglesInternal);
     tricks.msleep(500);
-    tricks.lineNN(leftup,rightup,speed,flip,anglesInternal);
+    tricks.lineNN(leftup,rightup,speed/2,flip,anglesInternal);
     tricks.msleep(500);
     tricks.lineNN(rightup,rightlow,speed,flip,anglesInternal);
     tricks.lineNN(rightlow,leftlow,speed,flip,anglesInternal);

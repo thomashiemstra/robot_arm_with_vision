@@ -8,6 +8,8 @@
 
 using namespace::std;
 
+
+
 class IK
 {
 	public:
@@ -22,6 +24,9 @@ class IK
         void forwardKinematics(double angles[7], double jointPos[7][3]);
         void jacobianTransposeOnF(double F_world[7][3], double F_joint[7], double angles[7]);
 	private:
+	    struct fann *ann;
+        struct fann *ann_orientation;
+        struct fann *ann_position;
 	    void forwardKinematicsOrientation(double *angles, double *pos);
 	    void forwardKinematicsPos(double *angles, double *pos);
 

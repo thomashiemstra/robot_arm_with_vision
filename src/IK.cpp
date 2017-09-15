@@ -34,15 +34,21 @@ using namespace::std;
 double epsilon = 0.05; /*use to avoid wrist singularities */
 /* arrays for the multimap function which makes the servos a bit more linear */
 double inangles[5]      =  {0,pi/4.0, pi/2.0, (3.0/4.0)*pi, pi};
-double servovals[7][5] =   	{	{225,350,480,610,750}, //0
+double servovals[7][5] =   	{	{220,345,475,620,755}, //0
 								{250,360,490,630,765}, //1
 								{245,365,490,630,766}, //2
 								{270,380,510,660,795}, //3
-								{240,400,585,775,930}, //4
+								{235,410,595,775,935}, //4
 								{190,370,565,780,970}, //5 goes from 0 to 270 aka -135 to +135
 								{245,390,545,715,875} };//6
 
 IK::IK(void){
+
+    ann = fann_create_from_file("nn/ik_float_20_20_20_20_20_20_20_20.net");
+    ann_orientation = fann_create_from_file("nn/ik_float_orientation_20_20_20_20.net");
+    ann_position = fann_create_from_file("nn/ik_float_position_20_20_20_20.net");
+
+
 	return;
 }
 /* roll pitch yaw matrix with the columns permutated z->y, y->x x->z */
@@ -181,13 +187,11 @@ void IK::inverseKinematicsRaw(double x,double y,double z,double t[3][3],double a
 		angles[4] = atan2(-ay,-ax);
 		angles[5] = atan2(-sqrt(ax*ax+ay*ay),az);
 		angles[6] = atan2(-sz,nz);
-		angles[0] = angles[5];
 	}
 	else{
 		angles[4] = atan2(ay,ax);
 		angles[5] = atan2(sqrt(ax*ax+ay*ay),az);
 		angles[6] = atan2(sz,-nz);
-		angles[0] = angles[5];
 	}
 }
 
@@ -260,9 +264,9 @@ void IK::forwardKinematicsOrientation(double *angles, double *pos){
 /* anglesInternal has range (-1,1) angles is as normal, this algorithm needs the current angles of the robot as input */
 void IK::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3], double anglesInternal[6] ,double angles[7]){
 
-    struct fann *ann = fann_create_from_file("ik_float_20_20_20_20_20_20_20_20.net");
-    struct fann *ann_orientation = fann_create_from_file("ik_float_orientation_20_20_20_20.net");
-    struct fann *ann_position = fann_create_from_file("ik_float_position_20_20_20_20.net");
+//    struct fann *ann = fann_create_from_file("nn/ik_float_20_20_20_20_20_20_20_20.net");
+//    struct fann *ann_orientation = fann_create_from_file("nn/ik_float_orientation_20_20_20_20.net");
+//    struct fann *ann_position = fann_create_from_file("nn/ik_float_position_20_20_20_20.net");
 
     double *calc;
     double *calcPos;
@@ -300,9 +304,8 @@ void IK::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3], 
         for(int i = 0; i < 6; i++)
             anglesInternal[i] += calc[i]*2;
     }
-
     /* run the network on the position and orientation error */
-    for(int j=0; j<3; j++){
+    for(int j=0; j<5; j++){
         /* update angles using the position error */
         forwardKinematicsPos(anglesInternal, tempPos);
         for(int i=0; i<3; i++)
@@ -335,8 +338,8 @@ void IK::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3], 
     angles[5] = (anglesInternal[4] + 1)*half_pi;
     angles[6] = anglesInternal[5]*pi;
 
-    fann_destroy(ann); fann_destroy(ann_orientation); fann_destroy(ann_position);
-    free(calc); free(calcPos); free(calcOrientation);
+//    fann_destroy(ann); fann_destroy(ann_orientation); fann_destroy(ann_position);
+    //free(calc); free(calcPos); free(calcOrientation);
 }
 
 void IK::convertAngles(double inangles[7], double outangles[7]){
