@@ -42,14 +42,23 @@ double servovals[7][5] =   	{	{220,345,475,620,755}, //0
 								{190,370,565,780,970}, //5 goes from 0 to 270 aka -135 to +135
 								{245,390,545,715,875} };//6
 
-IK::IK(void){
+IK::IK(){
 
     ann = fann_create_from_file("nn/ik_float_20_20_20_20_20_20_20_20.net");
     ann_orientation = fann_create_from_file("nn/ik_float_orientation_20_20_20_20.net");
     ann_position = fann_create_from_file("nn/ik_float_position_20_20_20_20.net");
 
+    calc = (double *)malloc(sizeof(double)*6);
+    calcPos = (double *)malloc(sizeof(double)*6);
+    calcOrientation = (double *)malloc(sizeof(double)*6);
 
 	return;
+}
+
+IK::~IK(){
+ fann_destroy(ann); fann_destroy(ann_orientation); fann_destroy(ann_position);
+ free(calc); free(calcPos); free(calcOrientation);
+ cout << "freedom!" << endl;
 }
 /* roll pitch yaw matrix with the columns permutated z->y, y->x x->z */
 /* so that by default the gripper is in the y_0 direction and the  slider is in the x_0 direction */
@@ -264,17 +273,6 @@ void IK::forwardKinematicsOrientation(double *angles, double *pos){
 /* anglesInternal has range (-1,1) angles is as normal, this algorithm needs the current angles of the robot as input */
 void IK::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3], double anglesInternal[6] ,double angles[7]){
 
-//    struct fann *ann = fann_create_from_file("nn/ik_float_20_20_20_20_20_20_20_20.net");
-//    struct fann *ann_orientation = fann_create_from_file("nn/ik_float_orientation_20_20_20_20.net");
-//    struct fann *ann_position = fann_create_from_file("nn/ik_float_position_20_20_20_20.net");
-
-    double *calc;
-    double *calcPos;
-    double *calcOrientation;
-    calc = (double *)malloc(sizeof(double)*6);
-    calcPos = (double *)malloc(sizeof(double)*6);
-    calcOrientation = (double *)malloc(sizeof(double)*6);
-
     double pos[15];
     double tempPos[3];
     double posError[3];
@@ -282,7 +280,6 @@ void IK::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3], 
     double tempOrientation[6];
     double orientationError[6];
     double orientationInput[12];
-
 
     /* scale the input to {-1,1} */
     double temp = a2 + d1 + d4 + d6;
@@ -337,9 +334,6 @@ void IK::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3], 
     angles[4] = anglesInternal[3]*pi;
     angles[5] = (anglesInternal[4] + 1)*half_pi;
     angles[6] = anglesInternal[5]*pi;
-
-//    fann_destroy(ann); fann_destroy(ann_orientation); fann_destroy(ann_position);
-    //free(calc); free(calcPos); free(calcOrientation);
 }
 
 void IK::convertAngles(double inangles[7], double outangles[7]){
