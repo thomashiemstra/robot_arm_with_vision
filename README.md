@@ -5,4 +5,4 @@ Also check out my youtube channel to see it in action:
 https://www.youtube.com/user/thomashiemstra
 
 
-![Alt text](https://imgur.com/a/y0CkK "The arm")
+![Alt text](https://imgur.com/gjmuj34 "The arm")
