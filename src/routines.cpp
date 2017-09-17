@@ -67,7 +67,57 @@ int Routines::returnBlock(double x, double y, double z, double temptheta, double
     return 1;
 }
 
-int Routines::returnBlockOO(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter, vector<vector<vector<double > > >& objectPoints, vector<int >& foundMarkers){
+int Routines::returnBlockNN(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter){
+    unique_lock<mutex> locker(grabmu,defer_lock);
+    if(!locker.try_lock()){
+        cout << "already in use!" << endl;
+        tricks.msleep(100);
+        return 0;
+    }
+    double delta = 3.1; /* height of the block */
+    double theta,r,time;
+    double pitchdown = -45*degtorad;
+    double anglesInternal[6] = {0,0,0,0,-1,0};
+
+    if(y < 12){
+        cout << "ain't gonna wreck myself!!!" << endl;
+        return 0;
+    }
+    theta = tricks.fixtheta(temptheta);
+    cout << "x=" << x << "  y=" << y << "   theta=" <<theta << endl;
+    struct Pos  obj, objup, dropup;
+
+    tricks.setPos(&dropup, drop.x,drop.y,drop.z + delta,0,0,drop.gamma,drop.grip);
+    tricks.setPos(&objup, x,y,z + 12,theta,0,pitchdown,100);
+    tricks.setPos(&obj,x,y,z,theta,0,pitchdown,0);
+
+    r = sqrt(pow(dropup.x-objup.x,2) + pow(dropup.x - objup.x,2));
+    time = r/speed;
+
+    tricks.lineNN(drop,dropup,speed,flip,anglesInternal);
+    tricks.pointToPointNN(dropup,objup,time,flip,anglesInternal);
+    tricks.lineNN(objup,obj,speed/2,flip,anglesInternal);
+    tricks.msleep(100);
+    /* there should be a better way to close the gripper at all points...*/
+    tricks.setPos(&objup, x,y,z + 10,theta,0,pitchdown,0);
+    tricks.setPos(&dropup, drop.x,drop.y,drop.z + delta,0,0,drop.gamma,0);
+
+    tricks.lineNN(obj,objup,speed/2,flip,anglesInternal);
+    tricks.msleep(100);
+    tricks.pointToPointNN(objup,dropup,time,flip,anglesInternal);
+    tricks.lineNN(dropup,drop,speed/4,flip,anglesInternal);
+
+    tricks.setPos(&dropup, drop.x,drop.y,drop.z + delta,0,0,drop.gamma,100);
+    tricks.lineNN(drop,dropup,speed,flip,anglesInternal);
+
+    tricks.setPos(&drop,drop.x,drop.y,drop.z + delta,0,0,drop.gamma,drop.grip);
+
+    locker.unlock();
+    return 1;
+}
+
+int Routines::returnBlockOO(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter,
+                            vector<vector<vector<double > > >& objectPoints, vector<int >& foundMarkers){
     unique_lock<mutex> locker(grabmu,defer_lock);
     if(!locker.try_lock()){
         cout << "already in use!" << endl;
@@ -129,7 +179,8 @@ void Routines::stacking(double speed, int flip){
     tricks.setPos(&drop, -20,25,2,0,0,-45*degtorad,100);
     tricks.setArmPos(drop, flip);
 
-    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
+    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),
+             ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
     t.detach();
     looptieloop = tricks.wait();
     int counter = 0;
@@ -141,9 +192,10 @@ void Routines::stacking(double speed, int flip){
         temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
         locker.unlock();
         toFind++;
-        returnBlock(x,y,z,temptheta,speed,flip,drop,counter);
+        //returnBlock(x,y,z,temptheta,speed,flip,drop,counter);
+        returnBlockNN(x,y,z,temptheta,speed,flip,drop,counter);
         counter++;
-        if(toFind>45){
+        if(toFind>44){
             looptieloop = 0;
             break;
         }
@@ -171,7 +223,8 @@ void Routines::stackingOO(double speed, int flip){
     pp.prepareOOThread(objectPoints, foundMarkers);
     tricks.msleep(1000);
 
-    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
+    thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),
+             ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
     t.detach();
     looptieloop = tricks.wait();
     int counter = 0;

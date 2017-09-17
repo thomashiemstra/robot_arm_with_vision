@@ -193,7 +193,6 @@ void IK::inverseKinematicsRaw(double x,double y,double z,double t[3][3],double a
 	}
 }
 
-
 void IK::convertAngles(double inangles[7], double outangles[7]){
     /* all that follows now is fixing the angles because some of the servo orientations */
     /* do no align with the DH frames and servo's can only move 180 degrees*/

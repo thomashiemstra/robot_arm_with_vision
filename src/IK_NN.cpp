@@ -46,8 +46,6 @@ IK_NN::~IK_NN(){
     //free(calc); free(calcPos); free(calcOrientation);
 }
 
-
-
 void IK_NN::inverseKinematicsNNRaw(double x,double y,double z,double t[3][3],double angles[7], int flip){
     fann_type *calc;
     fann_type pos[9];
@@ -145,7 +143,7 @@ void IK_NN::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3
             anglesInternal[i] += calc[i]*2;
     }
     /* run the network on the position and orientation error */
-    for(int j=0; j<3; j++){
+    for(int j=0; j<2; j++){
         /* update angles using the position error */
         forwardKinematicsPos(anglesInternal, tempPos);
         for(int i=0; i<3; i++)

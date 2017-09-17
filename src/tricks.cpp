@@ -197,6 +197,40 @@ void Tricks::pointToPoint(struct Pos start, struct Pos stop, double time, int fl
         }
     }
 }
+/*move from point to point in x amount of seconds, */
+void Tricks::pointToPointNN(struct Pos start, struct Pos stop, double time, int flip, double anglesInternal[6]){
+    double startAngles[7] = {0};
+    double stopAngles[7] = {0};
+    double tempAngles[7] = {0};
+    double tempAngle[7] = {0};
+    int dgrip = stop.grip - start.grip;
+
+    ik.eulerMatrix(start.alpha, start.beta, start.gamma,t);
+    ik_nn.inverseKinematicsNNRawDelta(start.x, start.y, start.z, t,anglesInternal,tempAngles);
+    ik.convertAngles(tempAngles,startAngles);
+
+    ik.eulerMatrix(stop.alpha, stop.beta, stop.gamma,t);
+    ik_nn.inverseKinematicsNNRawDelta(stop.x, stop.y, stop.z, t,anglesInternal,tempAngles);
+    ik.convertAngles(tempAngles,stopAngles);
+
+    int steps = ceil(time*20); /* maybe steps should scale not with time but with path length */
+
+    for(int k=0; k<steps; k++){
+        double t = (double)k/steps; /* t has to go from 0 to 1*/
+        for(int i=1; i<7; i++){
+            tempAngle[i] = startAngles[i] + 3*(stopAngles[i] - startAngles[i])*pow(t,2) - 2*(stopAngles[i] - startAngles[i])*pow(t,3);
+        }
+        commandArduino(tempAngle, start.grip); /* grip not implemented yet */
+        msleep(50);
+    }
+    if(abs(dgrip) > 0){
+        for (int j=0;j<20;j++){
+            int temp = ceil(start.grip + (j/20)*dgrip);
+            commandArduino(angles,temp);
+            msleep(20);
+        }
+    }
+}
 
 void Tricks::anglesToAngles(double startAngles[7], double stopAngles[7], double time, int flip, int grip){
     double tempAngle[7] = {0};

@@ -229,24 +229,17 @@ void compareAngles(double x, double y, double z){
 
 }
 
-
-
 int main(void){
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << endl;
 
-//    ik.inverseKinematicsNNRawDelta(0,30,20,w,anglesInternal,angles);
+    int flip = 0;
 
-//    int flip = 1;
-
-//    rout.stacking(15,flip);
+    rout.stacking(15,flip);
 //    rout.stackingOO(15,flip);
 //    rout.monkeySeeMonkeyDo();
- //   rout.showOff(15);
+//   rout.showOff(10);
 //   rout.showOffNN(10);
-//    compareAnglesError();
-
-//    generateData();
 
     return 0;
 }

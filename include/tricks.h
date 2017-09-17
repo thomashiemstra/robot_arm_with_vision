@@ -45,6 +45,7 @@ class Tricks
 		void line(struct Pos start, struct Pos stop, double speed, int flip);
 		void lineNN(struct Pos start, struct Pos stop, double speed, int flip, double anglesInternal[6]);
 		void pointToPoint(struct Pos start, struct Pos stop, double time, int flip);
+		void pointToPointNN(struct Pos start, struct Pos stop, double time, int flip, double anglesInternal[6]);
 		void anglesToAngles(double startAngles[7], double stopAngles[7], double time, int flip, int grip);
 		void setPos(struct Pos* pos, double x, double y, double z, double alpha, double beta, double gamma,int grip);
 		int wait();

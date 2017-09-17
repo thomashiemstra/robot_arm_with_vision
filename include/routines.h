@@ -47,6 +47,7 @@ class Routines
         void monkeySeeMonkeyDo();
         int returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter);
         int returnBlockOO(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter, vector<vector<vector<double > > >& objectPoints, vector<int >& foundMarkers);
+        int returnBlockNN(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter);
 
     private:
 
