@@ -196,12 +196,11 @@ void Routines::showOff(double speed){
     int flip = 0;
 
     struct Pos start, leftlow, rightlow, leftup, rightup;
-    struct Pos start1,start2,start3;
     tricks.setPos(&start,0,25,20,0,0,0,10);
-    tricks.setPos(&leftlow,-20,30,10,0,0,0,10);
-    tricks.setPos(&rightlow,20,30,10,0,0,0,10);
-    tricks.setPos(&leftup,-20,30,30,0,0,0,10);
-    tricks.setPos(&rightup,20,30,30,0,0,0,10);
+    tricks.setPos(&leftlow,-20,25,5,0,0,0,10);
+    tricks.setPos(&rightlow,20,25,5,0,0,0,10);
+    tricks.setPos(&leftup,-20,25,25,0,0,0,10);
+    tricks.setPos(&rightup,20,25,25,0,0,0,10);
 
     tricks.setArmPos(start,flip);
     tricks.wait();
@@ -210,20 +209,13 @@ void Routines::showOff(double speed){
     flip = 0;
     tricks.setArmPos(leftup,flip);
     tricks.msleep(500);
-    tricks.line(leftup,rightup,speed/2,flip);
+    tricks.line(leftup,rightup,speed,flip);
     flip = 0;
     tricks.setArmPos(rightup,flip);
     tricks.msleep(500);
     tricks.line(rightup,rightlow,speed,flip);
     tricks.line(rightlow,leftlow,speed,flip);
     tricks.line(leftlow,start,speed,flip);
-
-    tricks.setPos(&start1,0,25,20,pi/2,0,0,10);
-    tricks.setPos(&start2,0,25,20,-pi/2,0,0,10);
-    tricks.setPos(&start3,0,25,20,pi/2,0,0,10);
-    tricks.line(start,start1,speed,flip);
-    tricks.line(start1,start2,speed,flip);
-    tricks.line(start2,start3,speed,flip);
 
     double dummy = 40;
 
@@ -247,7 +239,6 @@ void Routines::showOff(double speed){
        tricks.commandArduino(angles,10);
        tricks.msleep(50);
    }
-
 }
 
 void Routines::showOffNN(double speed){
@@ -259,27 +250,27 @@ void Routines::showOffNN(double speed){
     double arduinoAngles[7];
 
     tricks.setPos(&start,0,25,20,0,0,0,10);
-    tricks.setPos(&leftlow,-20,30,10,0,0,0,10);
-    tricks.setPos(&rightlow,20,30,10,0,0,0,10);
-    tricks.setPos(&leftup,-20,30,30,0,0,0,10);
-    tricks.setPos(&rightup,20,30,30,0,0,0,10);
+    tricks.setPos(&leftlow,-20,25,5,0,0,0,10);
+    tricks.setPos(&rightlow,20,25,5,0,0,0,10);
+    tricks.setPos(&leftup,-20,25,25,0,0,0,10);
+    tricks.setPos(&rightup,20,25,25,0,0,0,10);
 
     tricks.setArmPosNN(start,flip,anglesInternal);
     tricks.wait();
     tricks.lineNN(start,leftlow,speed,flip,anglesInternal);
     tricks.lineNN(leftlow,leftup,speed,flip,anglesInternal);
     tricks.msleep(500);
-    tricks.lineNN(leftup,rightup,speed/2,flip,anglesInternal);
+    tricks.lineNN(leftup,rightup,speed,flip,anglesInternal);
     tricks.msleep(500);
     tricks.lineNN(rightup,rightlow,speed,flip,anglesInternal);
     tricks.lineNN(rightlow,leftlow,speed,flip,anglesInternal);
     tricks.lineNN(leftlow,start,speed,flip,anglesInternal);
 
-    double dummy = 40;
+    double dummy = 70;
 
     for (int j=0; j<=dummy; j++){
        ik.eulerMatrix( sin((j/(float)dummy)*half_pi)*half_pi,0,0,t);
-       ik.inverseKinematicsNNRawDelta(0,25,20,t,anglesInternal,rawAngles);
+       ik_nn.inverseKinematicsNNRawDelta(0,25,20,t,anglesInternal,rawAngles);
        ik.convertAngles(rawAngles,arduinoAngles);
        tricks.commandArduino(arduinoAngles,10);
        tricks.msleep(50);
@@ -287,7 +278,7 @@ void Routines::showOffNN(double speed){
 
     for (int j=dummy; j>=-dummy; j--){
        ik.eulerMatrix( sin((j/(float)dummy)*half_pi)*half_pi,0,0,t);
-       ik.inverseKinematicsNNRawDelta(0,25,20,t,anglesInternal,rawAngles);
+       ik_nn.inverseKinematicsNNRawDelta(0,25,20,t,anglesInternal,rawAngles);
        ik.convertAngles(rawAngles,arduinoAngles);
        tricks.commandArduino(arduinoAngles,10);
        tricks.msleep(50);
@@ -295,7 +286,7 @@ void Routines::showOffNN(double speed){
 
     for (int j=-dummy; j<=0; j++){
        ik.eulerMatrix( sin((j/(float)dummy)*half_pi)*half_pi,0,0,t);
-       ik.inverseKinematicsNNRawDelta(0,25,20,t,anglesInternal,rawAngles);
+       ik_nn.inverseKinematicsNNRawDelta(0,25,20,t,anglesInternal,rawAngles);
        ik.convertAngles(rawAngles,arduinoAngles);
        tricks.commandArduino(arduinoAngles,10);
        tricks.msleep(50);

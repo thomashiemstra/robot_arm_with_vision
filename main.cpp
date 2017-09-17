@@ -4,6 +4,7 @@
 #include <vector>
 #include <condition_variable>
 #include "IK.h"
+#include "IK_NN.h"
 #include "Serial.h"
 #include "cam.h"
 #include "tricks.h"
@@ -49,6 +50,7 @@ Tricks tricks = Tricks();
 PathPlanning pp = PathPlanning();
 cam CAM = cam(0,30); /* 30 is as high as she'll go*/
 IK ik = IK();
+IK_NN ik_nn = IK_NN();
 Serial *arduino;
 Routines rout = Routines();
 
@@ -108,7 +110,7 @@ void generateData(){
         x[i] = r*sin(2*pi*t);
         z[i] = r*cos(2*pi*t) + 15;
 
-        ik.inverseKinematicsNNRawDelta(x[i],y[i],z[i],w,anglesInternal,anglesNN);
+        ik_nn.inverseKinematicsNNRawDelta(x[i],y[i],z[i],w,anglesInternal,anglesNN);
         ik.inverseKinematicsRaw(x[i],y[i],z[i],w,angles,0);
 
         fprintf(file,"%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n",t,angles[1],anglesNN[1],angles[2],anglesNN[2],angles[3],anglesNN[3],angles[4],anglesNN[4],angles[5],anglesNN[5],angles[6],anglesNN[6]);
@@ -133,12 +135,63 @@ void compareTime(){
         y  = (dis(gen)+1)*10 + 15;
         z = (dis(gen)+1)*20;
         //ik.inverseKinematicsRaw(x,y,z,w,angles,1);
-        ik.inverseKinematicsNNRawDelta(x,y,z,w,anglesInternal,angles);
+        ik_nn.inverseKinematicsNNRawDelta(x,y,z,w,anglesInternal,angles);
     }
     auto end = std::chrono::high_resolution_clock::now();
     auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end-begin).count();
     cout << "1.000 calcs took " << time << "ms" << endl;
 
+}
+
+void compareAnglesError(){
+    std::random_device rd;
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937 gen(seed);
+    std::uniform_real_distribution<> dis(-1, 1);
+
+    double angles[7];
+    double anglesNN[7];
+    double anglesInternal[6] = {0,0,0,0,-1,0};
+    double angleError[7];
+    double temp;
+
+    double x,y,z;
+    int counter[7];
+
+    for(int i = 0; i<7; i++){
+        angleError[i] = 0;
+        counter[i] = 0;
+    }
+
+    for(int i = 0; i < 10000; i++){
+        x = dis(gen)*20;
+        y  = (dis(gen)+1)*10 + 15;
+        z = (dis(gen)+1)*20;
+
+        ik.inverseKinematicsRaw(x,y,z,w,angles,0);
+        //ik_nn.inverseKinematicsNNRaw(x,y,z,w,anglesNN,0);
+        ik_nn.inverseKinematicsNNRawDelta(x,y,z,w,anglesInternal,anglesNN);
+
+        for(int j=1; j<7; j++){
+            temp = abs(angles[j] - anglesNN[j]);
+            if(!isnan(temp)){
+                angleError[j] += temp;
+                counter[j]++;
+            }
+        }
+
+    }
+    for(int j=1; j<7; j++){
+        angleError[j] = (angleError[j]/counter[j])*radtodeg;
+        //cout << angleError[j] << endl;
+    }
+
+    FILE *file;
+    char data[1024];
+    sprintf(data, "data_analysis/angles_error_3.dat");
+    file = fopen(data,"wb");
+    fprintf(file,"%lf\t%lf\t%lf\t%lf\t%lf\t%lf",angleError[1],angleError[2],angleError[3],angleError[4],angleError[5],angleError[6]);
+    fclose(file);
 }
 
 void compareAngles(double x, double y, double z){
@@ -149,7 +202,7 @@ void compareAngles(double x, double y, double z){
     double temp = a2 + d1 + d4 + d6;
 
     for(int j=0; j<5; j++){
-        ik.inverseKinematicsNNRawDelta(x,y,z,w,anglesInternal,anglesNN);
+        ik_nn.inverseKinematicsNNRawDelta(x,y,z,w,anglesInternal,anglesNN);
         ik.inverseKinematicsRaw(x,y,z,w,angles,0);
 
         forwardKinematics(anglesInternal,pos);
@@ -179,8 +232,8 @@ void compareAngles(double x, double y, double z){
 
 
 int main(void){
-//    arduino = new Serial(portName);
-//    cout << "is connected: " << arduino->IsConnected() << endl;
+    arduino = new Serial(portName);
+    cout << "is connected: " << arduino->IsConnected() << endl;
 
 //    ik.inverseKinematicsNNRawDelta(0,30,20,w,anglesInternal,angles);
 
@@ -189,8 +242,9 @@ int main(void){
 //    rout.stacking(15,flip);
 //    rout.stackingOO(15,flip);
 //    rout.monkeySeeMonkeyDo();
-//    rout.showOff(15);
-//    rout.showOffNN(15);
+ //   rout.showOff(15);
+//   rout.showOffNN(10);
+//    compareAnglesError();
 
 //    generateData();
 

@@ -16,6 +16,7 @@
 #include <mutex>
 #include <condition_variable>
 #include "IK.h"
+#include "IK_NN.h"
 #include "Serial.h"
 #include "cam.h"
 #include "tricks.h"
@@ -29,6 +30,7 @@ extern mutex mu,grabmu;
 extern Serial *arduino;
 extern cam CAM;
 extern IK ik;
+extern IK_NN ik_nn;
 extern Tricks tricks;
 extern double angles[7];
 extern double t[3][3];

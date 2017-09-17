@@ -95,8 +95,8 @@ void Tricks::setArmPosNN(struct Pos Pos, int flip, double anglesInternal[6]){
     int grip = Pos.grip;
     ik.eulerMatrix(a,b,g,t);
 
-    //ik.inverseKinematicsRaw(x,y,z,t,tempAngles,flip);
-    ik.inverseKinematicsNNRawDelta(x,y,z,t,anglesInternal,tempAngles);
+    //ik_nn.inverseKinematicsRaw(x,y,z,t,tempAngles,flip);
+    ik_nn.inverseKinematicsNNRawDelta(x,y,z,t,anglesInternal,tempAngles);
     ik.convertAngles(tempAngles,angles);
 
     commandArduino(angles,grip);
@@ -152,8 +152,8 @@ void Tricks::lineNN(struct Pos start, struct Pos stop, double speed, int flip, d
         double z = start.z + 3*(stop.z - start.z)*pow(t1,2) - 2*(stop.z - start.z)*pow(t1,3);
         ik.eulerMatrix(start.alpha, start.beta, start.gamma,t);
 
-        //ik.inverseKinematicsRaw(x, y, z, t,tempAngles, flip);
-        ik.inverseKinematicsNNRawDelta(x,y,z,t,anglesInternal,tempAngles);
+        //ik_nn.inverseKinematicsRaw(x, y, z, t,tempAngles, flip);
+        ik_nn.inverseKinematicsNNRawDelta(x,y,z,t,anglesInternal,tempAngles);
         ik.convertAngles(tempAngles,angles);
 
         commandArduino(angles,start.grip);
