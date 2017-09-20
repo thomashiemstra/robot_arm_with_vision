@@ -146,6 +146,8 @@ void Tricks::lineNN(struct Pos start, struct Pos stop, double speed, int flip, d
     int steps = ceil(time*20);
 
     for(int k=0; k<steps; k++){
+        auto begin = std::chrono::high_resolution_clock::now();
+
         double t1 = (double)k/steps; /* t1 has to go from 0 to 1*/
         double x = start.x + 3*(stop.x - start.x)*pow(t1,2) - 2*(stop.x - start.x)*pow(t1,3);
         double y = start.y + 3*(stop.y - start.y)*pow(t1,2) - 2*(stop.y - start.y)*pow(t1,3);
@@ -157,7 +159,16 @@ void Tricks::lineNN(struct Pos start, struct Pos stop, double speed, int flip, d
         ik.convertAngles(tempAngles,angles);
 
         commandArduino(angles,start.grip);
-        msleep(50);
+
+
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> fp_ms = end - begin;
+        double test = fp_ms.count(); /* time elapsed so far*/
+        int wait = (int)(50 - test);
+        if(wait<0)
+            wait = 1;
+        std::this_thread::sleep_for(std::chrono::milliseconds(wait));
+
     }
     if(abs(dgrip) > 0){
         for (int j=0;j<20;j++){

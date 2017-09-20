@@ -130,7 +130,7 @@ void compareTime(){
     double x,y,z;
 
     auto begin = std::chrono::high_resolution_clock::now();
-    for(int i=0; i<1000; i++){
+    for(int i=0; i<100000; i++){
         x = dis(gen)*20;
         y  = (dis(gen)+1)*10 + 15;
         z = (dis(gen)+1)*20;
@@ -139,7 +139,7 @@ void compareTime(){
     }
     auto end = std::chrono::high_resolution_clock::now();
     auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end-begin).count();
-    cout << "1.000 calcs took " << time << "ms" << endl;
+    cout << "100.000 calcs took " << time << "ms" << endl;
 
 }
 
@@ -183,12 +183,12 @@ void compareAnglesError(){
     }
     for(int j=1; j<7; j++){
         angleError[j] = (angleError[j]/counter[j])*radtodeg;
-        //cout << angleError[j] << endl;
+        cout << "theta" << j << "\t" << angleError[j] << endl;
     }
 
     FILE *file;
     char data[1024];
-    sprintf(data, "data_analysis/angles_error_3.dat");
+    sprintf(data, "data_analysis/angles_error_total1.dat");
     file = fopen(data,"wb");
     fprintf(file,"%lf\t%lf\t%lf\t%lf\t%lf\t%lf",angleError[1],angleError[2],angleError[3],angleError[4],angleError[5],angleError[6]);
     fclose(file);
@@ -234,7 +234,9 @@ int main(void){
     cout << "is connected: " << arduino->IsConnected() << endl;
 
     int flip = 0;
-
+//    compareTime();
+//    compareAnglesError();
+//    compareTime();
     rout.stacking(15,flip);
 //    rout.stackingOO(15,flip);
 //    rout.monkeySeeMonkeyDo();

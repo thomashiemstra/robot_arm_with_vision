@@ -50,6 +50,7 @@
 			<Add option="-fexceptions" />
 		</Compiler>
 		<Unit filename="include/IK.h" />
+		<Unit filename="include/IK_NN.h" />
 		<Unit filename="include/PathPlanning.h" />
 		<Unit filename="include/Serial.h" />
 		<Unit filename="include/cam.h" />
@@ -57,6 +58,7 @@
 		<Unit filename="include/tricks.h" />
 		<Unit filename="main.cpp" />
 		<Unit filename="src/IK.cpp" />
+		<Unit filename="src/IK_NN.cpp" />
 		<Unit filename="src/PathPlanning.cpp" />
 		<Unit filename="src/Serial.cpp" />
 		<Unit filename="src/cam.cpp" />
