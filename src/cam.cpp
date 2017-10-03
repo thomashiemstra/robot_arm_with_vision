@@ -25,7 +25,8 @@ cam::cam(uint8_t cameraNum, int framesPerSecond){
     camera = cameraNum;
     fps = framesPerSecond;
 }
-/* find where the marker is located in the arrays */
+
+/* find the index of a specific marker in the array of all found markers */
 int cam::findIndex(vector<int>& vec, int val){
     int res;
     uint16_t length = vec.size();
@@ -35,36 +36,8 @@ int cam::findIndex(vector<int>& vec, int val){
         }
     return res;
 }
-/* obsolete function, might be useful for salvage */
-void cam::findRotMatrix(int basePos, int Pos, vector<Vec3d>& translationVectors, vector<Vec3d>& rotationVectors, Mat&  relativeRotMatrix){
-    int i,j,k;
-    Mat baseRotMatrix = Mat::zeros(3,3, CV_64F);
-    Mat baseRotMatrixTranspose = Mat::zeros(3,3, CV_64F);
-    Mat objectRotMatrix = Mat::zeros(3,3, CV_64F);
 
-    Rodrigues(rotationVectors[basePos],baseRotMatrix);
-    Rodrigues(rotationVectors[Pos],objectRotMatrix);
-
-    for(i = 0; i < 3; i++){
-        for(j = 0; j < 3; j++){
-            relativeRotMatrix.at<double>(i,j) = 0;
-            baseRotMatrixTranspose.at<double>(j,i) = baseRotMatrix.at<double>(i,j);
-        }
-    }
-
-    for(i = 0; i < 3; i++)
-    {
-        for(j = 0; j < 3; j++)
-        {
-            for(k = 0; k < 3; k++)
-            {
-                relativeRotMatrix.at<double>(i,j) += baseRotMatrixTranspose.at<double>(i,k) * objectRotMatrix.at<double>(k,j);
-            }
-        }
-    }
-
-}
-/* find the orientation with respect to the world coordinate frame (base frame) */
+/* find the rotation of the marker expressed in the coordinate frame of the Charucoboard */
 void cam::findRotMatrixCharuco(Vec3d& baseRotation, Vec3d& posRotation, Mat&  relativeRotMatrix){
     int i,j,k;
     Mat baseRotMatrix = Mat::zeros(3,3, CV_64F);
@@ -88,36 +61,15 @@ void cam::findRotMatrixCharuco(Vec3d& baseRotation, Vec3d& posRotation, Mat&  re
             }
         }
     }
-
 }
-/* obsolete function, might be useful for salvage */
-void cam::findRelativeVector(int basePos, int Pos, vector<Vec3d>& translationVectors, vector<Vec3d>& rotationVectors, vector<double>& posRes){
-    int i,j;
-    vector<double> R(3);
-    Mat baseRotMatrix = Mat::zeros(3,3, CV_64F);
 
-    /* posRes is the vector from the world coordinate system to object 1 expressed in world base vectors*/
-    /* R is the vector from object to base in expressed in the camera frame*/
-    for(i = 0; i < 3; i++)
-        R[i] = translationVectors[Pos][i] -  translationVectors[basePos][i];
-
-    /* R is still expressed with respect to the camera frame, to fix this we must multiply R by the transpose of the rotation matrix between the world and camera frame */
-    Rodrigues(rotationVectors[basePos],baseRotMatrix);
-
-    for(i = 0; i < 3; i++){
-        posRes[i] = 0;
-        for(j = 0; j < 3; j++){
-            posRes[i] += baseRotMatrix.at<double>(j,i)*R[j];
-        }
-    }
-}
-/* find the coordinates of the marker expressed in the world coordinate frame (base frame) */
+/* find the coordinates of the marker expressed in the frame of the Charucoboard */
 void cam::findRelativeVectorCharuco(Vec3d& baseRotation, Vec3d& baseTranslation, Vec3d& posTranslation,  vector<double>& posRes){
     int i,j;
     vector<double> R(3);
     Mat baseRotMatrix = Mat::eye(3,3, CV_64F);
 
-    /* posRes is the vector from the world coordinate system to object 1 expressed in world base vectors*/
+    /* posRes is the vector from the Charucoboard to the marker expressed in the coordinate frame of the board*/
     /* R is the vector from object to base in expressed in the camera frame*/
     for(i = 0; i < 3; i++)
         R[i] = posTranslation[i] -  baseTranslation[i];
@@ -131,20 +83,25 @@ void cam::findRelativeVectorCharuco(Vec3d& baseRotation, Vec3d& baseTranslation,
         }
     }
 }
+
 /* constantly outputs the camera feed and calculate the position of toFindMarker when asked, used in multi threading  */
-int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<double>& relPos, Mat& relativeRotMatrix, int& toFindMarker,bool &getVecs, int& condition){
+int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension,
+                               vector<double>& relPos, Mat& relativeRotMatrix, int& toFindMarker,bool &getVecs, int& condition){
     Mat frame;
+    /* dictionaries for all the markers I want to use */
     Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_4X4_50);
     Ptr<aruco::CharucoBoard> charucoboard = aruco::CharucoBoard::create(5, 3, 0.0265f, 0.0198f, markerDictionary);
     Ptr<aruco::Board> board = charucoboard.staticCast<aruco::Board>();
+
+    /* vars needed to pick the best candidate from different measurements */
     int counter = 0;
     double new_y,old_y = 0;
     double tempx = 0,tempy = 0;
     VideoCapture vid(0);
 
-    if(!vid.isOpened()){
+    if(!vid.isOpened())
         return -1;
-    }
+
     vid.set(CV_CAP_PROP_FOURCC ,CV_FOURCC('M', 'J', 'P', 'G') ); //MJPG drastically improves frame read times
     vid.set(CV_CAP_PROP_FRAME_WIDTH,1280);
     vid.set(CV_CAP_PROP_FRAME_HEIGHT,720);
@@ -160,34 +117,43 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
         vector< vector< Point2f > > markerCorners, rejectedMarkers;
         vector<int> markerIds, charucoIds;
 
-        /* detect everything*/
+        /* detect all markers, I have to detect every single markers and compute their Pose before I can pick the Pose of the specific marker I'm looking for*/
         aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
         aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimension, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
         if(markerIds.size()>0)
                 aruco::interpolateCornersCharuco(markerCorners, markerIds, frame, charucoboard, charucoCorners, charucoIds, cameraMatrix, distanceCoefficients);
-        bool validPose = aruco::estimatePoseCharucoBoard(charucoCorners, charucoIds, charucoboard, cameraMatrix, distanceCoefficients, rvec, tvec);
-        int Pos1 = findIndex(markerIds, toFindMarker);
+        int Pos1 = findIndex(markerIds, toFindMarker); /* the index of the marker I'm after*/
         if(Pos1 != -1)
             aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[Pos1], translationVectors[Pos1], 0.08f);
+
+        /* detecting all markers wasn't totally useless, that info is used now to find the charucoboard*/
+        bool validPose = aruco::estimatePoseCharucoBoard(charucoCorners, charucoIds, charucoboard, cameraMatrix, distanceCoefficients, rvec, tvec);
         if(validPose)
             aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rvec, tvec, 0.12f);
 
-        /* find the position and rotation of the toFindMarker*/
+        imshow("Webcam", frame);
+
+        /* find the position and rotation of the toFindMarker expressed in the coordinate frame of the Charucoboard*/
+        /* the computed position with the largest y value tends to be the best one so I pick that one from all the measurements */
+        int measurements = 5;
         if(Pos1 != -1 && getVecs){
-            unique_lock<mutex> locker(mu);
+            unique_lock<mutex> locker(mu); /* I need a lock on relPos and relativeRotMatrix until they are properly calculated*/
+            /* relPos is the position of the marker expressed in the coordinate frame of the Charucoboard*/
             findRelativeVectorCharuco(rvec, tvec, translationVectors[Pos1], relPos);
             new_y = relPos[1];
+
             if(new_y > old_y){
                 tempx = relPos[0];
                 tempy = new_y;
                 old_y = new_y;
+                /* only when this measurements is better than the previous do I calculate the rotation of the marker*/
                 findRotMatrixCharuco(rvec, rotationVectors[Pos1], relativeRotMatrix);
             }
-            else if(new_y < old_y){
+            else if(new_y < old_y)
                 tempy = old_y;
-            }
+
             counter ++;
-            if(counter == 10){
+            if(counter == measurements){ /* return the best found relative Pose*/
                 counter = 0;
                 getVecs = false;
                 relPos[0] = tempx;
@@ -197,8 +163,8 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
                 cond.notify_one();
             }
         }
-        imshow("Webcam", frame);
-        /*make sure we exactly hit the target fps */
+
+        /*make sure we exactly hit the target fps, waitKey(1000/fps) isn't accurate enough for my taste*/
         waitKey(1); /* without this imshow shows nothing*/
         auto temp = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> fp_ms = temp - begin;
@@ -212,8 +178,10 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
     destroyWindow("Webcam");
     return 1;
 }
+
 /* computes the relative position and rotation between 2 charuco boards */
-int cam::copyMovement(const Mat& cameraMatrix, const Mat& distanceCoefficients, vector<double>& relPos, Mat& relativeRotMatrix, bool &getVecs, int& condition){
+int cam::copyMovement(const Mat& cameraMatrix, const Mat& distanceCoefficients,
+                      vector<double>& relPos, Mat& relativeRotMatrix, bool &getVecs, int& condition){
     Mat frame;
     Ptr<aruco::Dictionary> markerDictionary = aruco::getPredefinedDictionary(aruco::DICT_4X4_50);
     Ptr<aruco::CharucoBoard> charucoboard = aruco::CharucoBoard::create(5, 5, 0.0265f, 0.0198f, markerDictionary);
@@ -294,6 +262,7 @@ int cam::copyMovement(const Mat& cameraMatrix, const Mat& distanceCoefficients, 
     destroyWindow("Webcam");
     return 1;
 }
+
 /* load the calibration matrix */
 bool cam::getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficients){
     ifstream inStream(name);
@@ -323,8 +292,10 @@ bool cam::getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficie
     }
     return false;
 }
-/* this function now takes in an array of markers to find and spits out an array of translation vectors and rotation matrices*/
-int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension, vector<vector<double > >& relPos, vector<Mat >& relativeRotMatrix, vector<int >& toFindMarkers, vector<int >& foundMarkers){
+
+/* Instead of taking as input a single marker it takes in an array of markers and return the Pose for all of them at once, very similar to startWebcamMonitoring()*/
+int cam::findVecsCharuco(const Mat& cameraMatrix, const Mat& distanceCoefficients, float arucoSquareDimension,
+                         vector<vector<double > >& relPos, vector<Mat >& relativeRotMatrix, vector<int >& toFindMarkers, vector<int >& foundMarkers){
     Mat frame;
     vector<double > new_y(relPos.size()), old_y(relPos.size()), tempx(relPos.size()), tempy(relPos.size());
 

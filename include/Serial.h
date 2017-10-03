@@ -29,7 +29,7 @@ class Serial
         //maximum number of bytes available, it will return only the
         //bytes available. The function return -1 when nothing could
         //be read, the number of bytes actually read.
-        int ReadData(char *buffer, unsigned int nbChar);
+        int ReadData(uint8_t *buffer, unsigned int nbChar);
         //Writes data from a buffer through the Serial connection
         //return true on success.
         bool WriteData(uint8_t *buffer, unsigned int nbChar);

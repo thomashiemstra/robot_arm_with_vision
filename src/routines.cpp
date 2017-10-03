@@ -19,7 +19,7 @@ Routines::Routines()
 {
     return;
 }
-
+/* command the robot arm to pick up a block and stack it on other picked up blocks */
 int Routines::returnBlock(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter){
     unique_lock<mutex> locker(grabmu,defer_lock);
     if(!locker.try_lock()){
@@ -67,6 +67,7 @@ int Routines::returnBlock(double x, double y, double z, double temptheta, double
     return 1;
 }
 
+/* the same as returnBlock except that the inverse kinematics are being handled by neural networks */
 int Routines::returnBlockNN(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter){
     unique_lock<mutex> locker(grabmu,defer_lock);
     if(!locker.try_lock()){
@@ -116,6 +117,7 @@ int Routines::returnBlockNN(double x, double y, double z, double temptheta, doub
     return 1;
 }
 
+/* same as returnBlock but this one can also avoid obstacles */
 int Routines::returnBlockOO(double x, double y, double z, double temptheta, double speed, int flip, struct Pos& drop,int counter,
                             vector<vector<vector<double > > >& objectPoints, vector<int >& foundMarkers){
     unique_lock<mutex> locker(grabmu,defer_lock);
@@ -164,44 +166,56 @@ int Routines::returnBlockOO(double x, double y, double z, double temptheta, doub
     return 1;
 }
 
+/* find blocks and stack them up*/
 void Routines::stacking(double speed, int flip){
-    double x,y,z,temptheta;
-    int toFind = 42;
+    double x,y,z,theta; /* Pose of the block we want to grab */
+    int toFind = 42; /* The marker to pick up, blocks have markers 42 to 49 glued on top of them */
     int looptieloop = 1;
     vector<double> relPos1(3);
     bool getVecs = false;
+
     Mat cameraMatrix = Mat::eye(3,3, CV_64F);
     Mat distanceCoefficients = Mat::zeros(5,1, CV_64F);
     Mat relativeMatrix = Mat::zeros(3,3, CV_64F);
     CAM.getMatrixFromFile("CameraCalibration720.dat", cameraMatrix, distanceCoefficients);
 
+    /* the drop off location for the tower of blocks */
     struct Pos drop;
     tricks.setPos(&drop, -20,25,2,0,0,-45*degtorad,100);
     tricks.setArmPos(drop, flip);
 
+    /* start the webcam, every time toFind is changed it spits out the corresponding Pose as soon as it can*/
     thread t(&cam::startWebcamMonitoring, &CAM, ref(cameraMatrix), ref(distanceCoefficients), ref(arucoSquareDimension),
              ref(relPos1) ,ref(relativeMatrix) ,ref(toFind), ref(getVecs), ref(looptieloop) );
     t.detach();
+
     looptieloop = tricks.wait();
-    int counter = 0;
+    int counter = 0; /* to jump to the next block */
+
     while(looptieloop){
-        getVecs = true;
+        getVecs = true; /* signal that we want to find a block, startWebcamMonitoring() sets it to False when it's done */
+
         unique_lock<mutex> locker(mu);
-        cond.wait(locker, [&]{return !getVecs;});
+        cond.wait(locker, [&]{return !getVecs;}); /* check that the markers is actually found */
+
+        /* convert computed values to centimeters and get the rotation about the z axis of the robot frame, relPos1 is in meters.
+           Note that x should be 100*relPos1[0] but it's not because of errors in the camera or robot or whatever... this works! */
         x = 90*relPos1[0] + 1; y = 100*relPos1[1] + 10; z = 1.5;
-        temptheta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
+        theta = atan2(relativeMatrix.at<double>(1,0),relativeMatrix.at<double>(0,0));
         locker.unlock();
         toFind++;
-        //returnBlock(x,y,z,temptheta,speed,flip,drop,counter);
-        returnBlockNN(x,y,z,temptheta,speed,flip,drop,counter);
+
+        /* pick up the block */
+        returnBlock(x,y,z,theta,speed,flip,drop,counter);
         counter++;
-        if(toFind>44){
+
+        if(toFind>47){ /* every block has a unique marker on top of it so here I only pick up the first few blocks */
             looptieloop = 0;
             break;
         }
     }
 }
-
+/* same as stacking but now it can also avoid obstacles */
 void Routines::stackingOO(double speed, int flip){
     double x,y,z,temptheta;
     int toFind = 42;
@@ -245,6 +259,7 @@ void Routines::stackingOO(double speed, int flip){
     }
 }
 
+/* move around a bit to show of the inverse kinematics */
 void Routines::showOff(double speed){
     int flip = 0;
 
@@ -294,6 +309,7 @@ void Routines::showOff(double speed){
    }
 }
 
+/* same as showOff but now the inverse kinematics are done by neural networks */
 void Routines::showOffNN(double speed){
 
     int flip = 1;
@@ -346,6 +362,7 @@ void Routines::showOffNN(double speed){
    }
 }
 
+/* make the robot track a charucoboard in real time */
 void Routines::monkeySeeMonkeyDo(){
     double x,y,z;
     vector<double> relPos1(3);

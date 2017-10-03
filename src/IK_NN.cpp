@@ -139,7 +139,7 @@ void IK_NN::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3
             anglesInternal[i] += calc[i]*2;
     }
     /* run the network on the position and orientation error */
-    for(int j=0; j<1; j++){
+    for(int j=0; j<10; j++){
         /* update angles using the position error */
         forwardKinematics(anglesInternal, tempPos);
         for(int i=0; i<3; i++)
@@ -165,7 +165,7 @@ void IK_NN::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3
             anglesInternal[i] += calcOrientation[i]/4.0;
     }
 
-    for(int j=0; j<5; j++){
+    for(int j=0; j<10; j++){
        /* update angles using the position + orientation error */
         forwardKinematics(anglesInternal, tempPos);
 
@@ -179,8 +179,6 @@ void IK_NN::inverseKinematicsNNRawDelta(double x,double y,double z,double t[3][3
         for(int i = 0; i < 6; i++)
             anglesInternal[i] += calcTotal[i]/20.0;
     }
-
-
 
     for(int j=0; j<5; j++){
        /* update angles using the position + orientation error */

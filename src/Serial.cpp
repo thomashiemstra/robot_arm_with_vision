@@ -83,7 +83,7 @@ Serial::~Serial()
     }
 }
 
-int Serial::ReadData(char *buffer, unsigned int nbChar)
+int Serial::ReadData(uint8_t *buffer, unsigned int nbChar)
 {
     //Number of bytes we'll have read
     DWORD bytesRead;

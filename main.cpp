@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stdio.h>
 #include <thread>
 #include <mutex>
 #include <vector>
@@ -63,6 +64,12 @@ struct Pos{
     double alpha; double beta; double gamma; /* euler angles for the target orientation */
     int grip;
 };
+
+union Sharedblock
+{
+    uint8_t part[4];
+    float data;
+} my_block;
 
 void forwardKinematics(double *angles, double *pos){
     double q1 =  (angles[0] + 1)*HALF_PI;           /* [0,PI] */
@@ -229,19 +236,69 @@ void compareAngles(double x, double y, double z){
 
 }
 
+void talkToArduino(){
+    uint8_t byte[1]; /* to send */
+    int16_t res[8];  /* answer from arduino */
+
+    byte[0] = 1;
+
+    uint8_t input[256];
+
+    arduino->WriteData(byte,1);
+    tricks.msleep(10);
+    arduino->ReadData(input,16);
+
+    for(int i = 0; i < 8; i++){
+        res[i] = (input[2*i + 1] << 8 ) | (input[2*i] & 0xff);
+        cout << res[i] << endl;
+    }
+    cout << "------------" << endl;
+    for(int i = 0; i < 16; i++){
+
+        printf("%d \n",input[i]);
+        if((i+1)%2 == 0)
+            cout << "------------" << endl;
+    }
+
+}
+
+union floatData
+{
+    uint8_t part[4];
+    float data;
+};
+
 int main(void){
+
     arduino = new Serial(portName);
     cout << "is connected: " << arduino->IsConnected() << endl;
 
-    int flip = 0;
+    //talkToArduino();
+
+//    int16_t val = 467;
+//
+//    uint8_t bytes[2];
+//        bytes[1] = (val >> 8) &0xff;
+//        bytes[0] = val & 0xff;
+//
+//    floatData test;
+//    test.data = 55.44;
+//
+//    arduino->WriteData(test.part,4);
+//    tricks.msleep(10);
+//    arduino->ReadData(my_block.part,4);
+//    cout << my_block.data << endl;
+
+//
+//    int flip = 0;
 //    compareTime();
 //    compareAnglesError();
 //    compareTime();
-    rout.stacking(15,flip);
+//    rout.stacking(15,flip);
 //    rout.stackingOO(15,flip);
 //    rout.monkeySeeMonkeyDo();
 //   rout.showOff(10);
-//   rout.showOffNN(10);
+   rout.showOffNN(10);
 
     return 0;
 }
