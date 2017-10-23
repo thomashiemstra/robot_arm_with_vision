@@ -56,12 +56,12 @@
 		<Unit filename="include/cam.h" />
 		<Unit filename="include/routines.h" />
 		<Unit filename="include/tricks.h" />
-		<Unit filename="main.cpp" />
 		<Unit filename="src/IK.cpp" />
 		<Unit filename="src/IK_NN.cpp" />
 		<Unit filename="src/PathPlanning.cpp" />
 		<Unit filename="src/Serial.cpp" />
 		<Unit filename="src/cam.cpp" />
+		<Unit filename="src/main.cpp" />
 		<Unit filename="src/routines.cpp" />
 		<Unit filename="src/tricks.cpp" />
 		<Extensions>
