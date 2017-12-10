@@ -297,8 +297,8 @@ int main(void){
 //    rout.stacking(15,flip);
 //    rout.stackingOO(15,flip);
 //    rout.monkeySeeMonkeyDo();
-//   rout.showOff(10);
-   rout.showOffNN(10);
+   rout.showOff(15);
+//   rout.showOffNN(10);
 
     return 0;
 }

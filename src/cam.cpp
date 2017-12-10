@@ -105,8 +105,8 @@ int cam::startWebcamMonitoring(const Mat& cameraMatrix, const Mat& distanceCoeff
     vid.set(CV_CAP_PROP_FOURCC ,CV_FOURCC('M', 'J', 'P', 'G') ); //MJPG drastically improves frame read times
     vid.set(CV_CAP_PROP_FRAME_WIDTH,1280);
     vid.set(CV_CAP_PROP_FRAME_HEIGHT,720);
-
     namedWindow("Webcam",CV_WINDOW_AUTOSIZE);
+
     while(true){
         auto begin = std::chrono::high_resolution_clock::now();
         if(!vid.read(frame))
@@ -279,7 +279,6 @@ bool cam::getMatrixFromFile(string name, Mat cameraMatrix, Mat distanceCoefficie
 
         rows = distanceCoefficients.rows;
         columns = distanceCoefficients.cols;
-
 
         for(int r = 0; r < rows; r++){
             for(int c = 0; c < columns; c++){

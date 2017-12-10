@@ -65,7 +65,7 @@ void PathPlanning::rotTrans(int marker, vector<vector<vector<double > > >& objec
         objectPoints[marker][i][y_comp] = (s*x + c*y) + trans[y_comp];
     }
 }
-/* f(0) = scaling - 1 f(z_max) = 0, makes the side of the box at a slight angle so the robot arm gets pushed up (I hope)*/
+/* f(0) = scaling - 1 f(z_max) = 0, makes the side of the box at a slight slope so the robot arm gets pushed up instead of getting stuck*/
 double PathPlanning::factor(double z, double z_max, double scaling){
     double a = (1.0 - scaling)/z_max;
     double b = scaling - 1;
@@ -130,7 +130,7 @@ void PathPlanning::createPointsBox(int marker, double dims[3], vector<vector<vec
     pos[3] = sqrt(pow(pos[0],2) + pow(pos[1],2) + pow(pos[2],2)); /* radius of the sphere encapsulating the box*/
     objectPoints[marker].push_back(pos);
 
-    pos.resize(3); /* no need shoving in a 4th component anymore */
+    pos.resize(3); /* only 3 dimensions here */
     /* top */
     for(i=0; i<= points_x; i++){
         for(j=0; j<= points_y; j++){
@@ -145,7 +145,7 @@ void PathPlanning::createPointsBox(int marker, double dims[3], vector<vector<vec
         for(j=0; j< points_z; j++){
             for(k=0; k < 2; k++ ){
                 pos[2] = j*dl;  /* z */
-                temp = dims[z_comp]*factor(pos[2],dims[z_comp] ,scaling); /* should go from scaling to 1*/
+                temp = dims[z_comp]*factor(pos[2],dims[z_comp] ,scaling); /* should go from scaling value down to 1*/
 
                 pos[0] = i*dl - offset/2.0; /* x */
                 if (pos[0]<=dims[x_comp]/2.0)

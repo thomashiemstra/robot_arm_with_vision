@@ -143,6 +143,7 @@ void IK::inverseKinematics(double x,double y,double z,double t[3][3],double angl
     angles[5] = (pi/2.0) - (2.0/3.0)*angles[5] ; /* a 270 degree servo goes from 135 to -135 degrees */
 	angles[6] = (pi/2.0) + 0.5*angles[6]; /* again 2:1*/
 }
+
 /* don't adjust angles for motors*/
 void IK::inverseKinematicsRaw(double x,double y,double z,double t[3][3],double angles[7], int flip){ /*results are stored in the angles array */
     /* the method here follows the calculations from the book:
